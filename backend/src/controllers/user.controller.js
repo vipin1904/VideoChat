@@ -146,3 +146,37 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+export async function updateProfile(req, res) {
+  try {
+    const { profilePic } = req.body;
+    const userId = req.user.id;
+
+    if (!profilePic) {
+      return res.status(400).json({ message: "Profile picture is required" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic },
+      { new: true }
+    );
+
+    // Also update stream-chat user
+    try {
+      const { upsertStreamUser } = await import("../lib/stream.js");
+      await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic,
+      });
+    } catch (e) {
+      console.log("Error updating stream profile:", e);
+    }
+
+    res.status(200).json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.log("Error in updateProfile:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}

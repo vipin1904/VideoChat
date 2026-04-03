@@ -2,27 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-.str-chat__channel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(to bottom, #c9e8c9, #b7e7bb);
-  height: 100%;
+:root {
+  --str-chat__primary-color: #25D366; /* WhatsApp Green */
+  --str-chat__surface-color: #efeae2; /* WhatsApp background */
+  --str-chat__secondary-surface-color: #dcf8c6; /* WhatsApp outgoing message */
+}
+
+html[data-theme="dark"] {
+  --str-chat__surface-color: #0b141a;
+  --str-chat__secondary-surface-color: #005c4b; 
 }
 
 .str-chat__container {
-  max-width: 1200px;
-  width: 100%;
-  height: 80% !important;
-  margin: 0 auto !important;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  height: 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+.str-chat__channel {
+  background-color: var(--str-chat__surface-color);
+  background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png"); 
+  background-repeat: repeat;
+  opacity: 0.95;
 }
 
 .str-chat__list {
-  background-color: #ffffff;
-  padding: 12px;
+  background: transparent !important;
+}
+
+/* WhatsApp message bubbles styling */
+.str-chat__message-simple--me .str-chat__message-inner {
+  background-color: var(--str-chat__secondary-surface-color) !important;
+  border-radius: 8px 0 8px 8px !important;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.str-chat__message-simple--other .str-chat__message-inner {
+  background-color: #ffffff !important;
+  border-radius: 0 8px 8px 8px !important;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+html[data-theme="dark"] .str-chat__message-simple--other .str-chat__message-inner {
+  background-color: #202c33 !important;
+  color: white;
+}
+
+html[data-theme="dark"] .str-chat__message-simple--me .str-chat__message-inner {
+  color: white;
 }
 
 .str-chat__list-notifications {
@@ -30,5 +60,7 @@
 }
 
 .str-chat__message-input {
-  border-top: 1px solid #ddd;
+  border-top: none !important;
+  padding: 10px !important;
+  background-color: transparent !important;
 }

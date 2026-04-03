@@ -60,7 +60,12 @@ html[data-theme="dark"] .str-chat__message-simple--me .str-chat__message-inner {
 }
 
 .str-chat__message-input {
-  border-top: none !important;
-  padding: 10px !important;
-  background-color: transparent !important;
+  border-top: 1px solid rgba(0,0,0,0.1) !important;
+  padding: 12px 16px !important;
+  background-color: #f0f2f5 !important;
+}
+
+html[data-theme="dark"] .str-chat__message-input {
+  background-color: #202c33 !important;
+  border-top: 1px solid rgba(255,255,255,0.05) !important;
 }

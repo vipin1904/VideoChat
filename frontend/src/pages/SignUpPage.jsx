@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { ShipWheelIcon } from "lucide-react";
+import { useState, useRef } from "react";
+import { ShipWheelIcon, CameraIcon, Wand2Icon } from "lucide-react";
 import { Link } from "react-router";
-
+import { generateInitialsAvatar } from "../lib/avatarGenerator";
 import useSignUp from "../hooks/useSignUp";
 
 const SignUpPage = () => {
@@ -9,7 +9,18 @@ const SignUpPage = () => {
     fullName: "",
     email: "",
     password: "",
+    profilePic: null,
   });
+  
+  const fileInputRef = useRef(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => setSignupData({ ...signupData, profilePic: reader.result });
+  };
 
   // This is how we did it at first, without using our custom hook
   // const queryClient = useQueryClient();
@@ -27,8 +38,11 @@ const SignUpPage = () => {
 
   const handleSignup = (e) => {
     e.preventDefault();
-    signupMutation(signupData);
+    const finalAvatar = signupData.profilePic || generateInitialsAvatar(signupData.fullName || "User");
+    signupMutation({ ...signupData, profilePic: finalAvatar });
   };
+
+  const previewAvatar = signupData.profilePic || generateInitialsAvatar(signupData.fullName || "User");
 
   return (
     <div
@@ -42,7 +56,7 @@ const SignUpPage = () => {
           <div className="mb-4 flex items-center justify-start gap-2">
             <ShipWheelIcon className="size-9 text-primary" />
             <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              Streamify
+              VideoChat
             </span>
           </div>
 
@@ -59,8 +73,37 @@ const SignUpPage = () => {
                 <div>
                   <h2 className="text-xl font-semibold">Create an Account</h2>
                   <p className="text-sm opacity-70">
-                    Join Streamify and start your language learning adventure!
+                    Join VideoChat and start your language learning adventure!
                   </p>
+                </div>
+                
+                {/* PROFILE PIC PICKER & SELECTOR */}
+                <div className="flex flex-col items-center justify-center mb-4 gap-3">
+                  <div className="relative w-24 h-24 rounded-full bg-base-200 border-4 border-base-300 flex items-center justify-center shadow-lg overflow-hidden group">
+                    <img src={previewAvatar} className="w-full h-full object-cover" />
+                  </div>
+                  
+                  {/* Selector Feature Row */}
+                  <div className="flex bg-base-200 rounded-lg p-1 gap-1">
+                    <button 
+                      type="button"
+                      className="btn btn-sm btn-ghost hover:bg-base-300"
+                      onClick={() => setSignupData({...signupData, profilePic: null})}
+                      title="Auto-Generate from Name"
+                    >
+                      <Wand2Icon className="w-4 h-4 text-primary" /> Auto
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn btn-sm btn-ghost hover:bg-base-300"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Upload Custom Photo"
+                    >
+                      <CameraIcon className="w-4 h-4 text-secondary" /> Upload
+                    </button>
+                  </div>
+
+                  <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageChange} />
                 </div>
 
                 <div className="space-y-3">

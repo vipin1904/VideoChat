@@ -4,16 +4,14 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken, getUserFriends } from "../lib/api";
 import { StreamChat } from "stream-chat";
-
 import {
-  StreamVideo,
-  StreamVideoClient,
   StreamCall,
   CallControls,
   SpeakerLayout,
   StreamTheme,
   CallingState,
   useCallStateHooks,
+  useStreamVideoClient,
 } from "@stream-io/video-react-sdk";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
@@ -25,11 +23,11 @@ const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 const CallPage = () => {
   const { id: callId } = useParams();
-  const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
   const [isConnecting, setIsConnecting] = useState(true);
 
   const { authUser, isLoading } = useAuthUser();
+  const videoClient = useStreamVideoClient();
 
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
@@ -39,30 +37,11 @@ const CallPage = () => {
 
   useEffect(() => {
     const initCall = async () => {
-      if (!tokenData.token || !authUser || !callId) return;
+      if (!tokenData?.token || !authUser || !callId || !videoClient) return;
 
       try {
-        console.log("Initializing Stream video client...");
-
-        const user = {
-          id: authUser._id,
-          name: authUser.fullName,
-          image: authUser.profilePic,
-        };
-
-        const videoClient = new StreamVideoClient({
-          apiKey: STREAM_API_KEY,
-          user,
-          token: tokenData.token,
-        });
-
         const callInstance = videoClient.call("default", callId);
-
         await callInstance.join({ create: true });
-
-        console.log("Joined call successfully");
-
-        setClient(videoClient);
         setCall(callInstance);
       } catch (error) {
         console.error("Error joining call:", error);
@@ -73,18 +52,16 @@ const CallPage = () => {
     };
 
     initCall();
-  }, [tokenData, authUser, callId]);
+  }, [tokenData, authUser, callId, videoClient]);
 
   if (isLoading || isConnecting) return <PageLoader />;
 
   return (
     <div className="w-screen h-[100dvh] bg-neutral overflow-hidden flex flex-col relative text-white">
-      {client && call ? (
-        <StreamVideo client={client}>
-          <StreamCall call={call}>
-            <CallContent authUser={authUser} tokenData={tokenData} callId={callId} />
-          </StreamCall>
-        </StreamVideo>
+      {videoClient && call ? (
+        <StreamCall call={call}>
+          <CallContent authUser={authUser} tokenData={tokenData} callId={callId} />
+        </StreamCall>
       ) : (
         <div className="flex items-center justify-center h-full text-white/70">
           <p>Could not initialize call. Please refresh or try again later.</p>
@@ -148,11 +125,34 @@ const CallContent = ({ authUser, tokenData, callId }) => {
     toast.success("Call link copied!");
   };
 
-  if (callingState === CallingState.LEFT) return navigate("/");
+  if (callingState === CallingState.LEFT) {
+    if (window.history.state && window.history.state.idx > 0) navigate(-1);
+    else navigate("/");
+    return null;
+  }
+
+  const handleManualBack = () => {
+    if (callId && videoClient) {
+      const activeCall = videoClient.call("default", callId);
+      activeCall.leave().catch(console.error);
+    }
+    if (window.history.state && window.history.state.idx > 0) navigate(-1);
+    else navigate("/");
+  };
 
   return (
     <StreamTheme className="w-full h-full flex flex-col relative">
-      <div className="absolute top-4 right-4 z-50 flex gap-2">
+      <div className="absolute top-4 left-4 z-[999999]">
+        <button 
+          className="btn btn-sm btn-circle btn-ghost bg-black/30 backdrop-blur-md text-white hover:bg-black/50 border-none"
+          onClick={handleManualBack}
+          title="Go Back"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        </button>
+      </div>
+
+      <div className="absolute top-4 right-4 z-[999999] flex gap-2">
         <button 
           className="btn btn-sm btn-ghost bg-black/30 backdrop-blur-md text-white hover:bg-black/50 border-none"
           onClick={copyLink}

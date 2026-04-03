@@ -3,6 +3,8 @@ import { useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
+import { useStreamVideoClient } from "@stream-io/video-react-sdk";
+import { useNavigate } from "react-router";
 
 import {
   Channel,
@@ -17,7 +19,7 @@ import { StreamChat } from "stream-chat";
 import toast from "react-hot-toast";
 
 import ChatLoader from "../components/ChatLoader";
-import CallButton from "../components/CallButton";
+import { PhoneIcon, VideoIcon, Trash2Icon } from "lucide-react";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
@@ -27,6 +29,8 @@ const ChatPage = () => {
   const [chatClient, setChatClient] = useState(null);
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
+  const videoClient = useStreamVideoClient();
+  const navigate = useNavigate();
 
   const { authUser } = useAuthUser();
 
@@ -80,15 +84,37 @@ const ChatPage = () => {
     initChat();
   }, [tokenData, authUser, targetUserId]);
 
-  const handleVideoCall = () => {
-    if (channel) {
-      const callUrl = `${window.location.origin}/call/${channel.id}`;
-
-      channel.sendMessage({
-        text: `I've started a video call. Join me here: ${callUrl}`,
+  const startCall = async (type) => {
+    if (!videoClient || !channel) {
+      toast.error("Video client not ready");
+      return;
+    }
+    const call = videoClient.call("default", channel.id);
+    
+    try {
+      await call.getOrCreate({
+        ring: true,
+        data: {
+          members: [{ user_id: authUser._id }, { user_id: targetUserId }],
+          custom: { type } 
+        }
       });
+      navigate(`/call/${channel.id}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to start call");
+    }
+  };
 
-      toast.success("Video call link sent successfully!");
+  const clearChat = async () => {
+    if(!channel) return;
+    if(window.confirm("Are you sure you want to clear this entire chat history?")) {
+      try {
+        await channel.truncate();
+        toast.success("Chat history cleared!");
+      } catch(err) {
+        toast.error("Could not clear chat.");
+      }
     }
   };
 
@@ -98,10 +124,22 @@ const ChatPage = () => {
     <div className="w-full h-full flex flex-col">
       <Chat client={chatClient}>
         <Channel channel={channel}>
-          <div className="w-full relative">
-            <CallButton handleVideoCall={handleVideoCall} />
+          <div className="w-full relative flex flex-col h-full">
+            {/* Custom Header Actions Overlay */}
+            <div className="absolute top-3 right-4 z-10 flex gap-2">
+              <button onClick={() => startCall('audio')} className="btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/20" title="Voice Call">
+                <PhoneIcon className="w-5 h-5" />
+              </button>
+              <button onClick={() => startCall('video')} className="btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/20" title="Video Call">
+                <VideoIcon className="w-5 h-5" />
+              </button>
+              <button onClick={clearChat} className="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/20" title="Clear Chat">
+                <Trash2Icon className="w-5 h-5" />
+              </button>
+            </div>
+            
             <Window>
-              <ChannelHeader />
+              <ChannelHeader title="VideoChat Conversation" />
               <MessageList />
               <MessageInput focus />
             </Window>

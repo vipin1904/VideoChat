@@ -17,6 +17,7 @@ import NoFriendsFound from "../components/NoFriendsFound";
 const HomePage = () => {
   const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
+  const [pendingUserId, setPendingUserId] = useState(null);  // Change 1: Added a state variable to track which user's request is pending
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
@@ -33,9 +34,15 @@ const HomePage = () => {
     queryFn: getOutgoingFriendReqs,
   });
 
-  const { mutate: sendRequestMutation, isPending } = useMutation({
+  const { mutate: sendRequestMutation } = useMutation({  // Change 2: Set/clear the pending ID around the mutation
     mutationFn: sendFriendRequest,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] });
+      setPendingUserId(null);
+    },
+    onError: () => {
+      setPendingUserId(null);
+    },
   });
 
   useEffect(() => {
@@ -139,16 +146,18 @@ const HomePage = () => {
 
                       {/* Action button */}
                       <button
-                        className={`btn w-full mt-2 ${
-                          hasRequestBeenSent ? "btn-disabled" : "btn-primary"
-                        } `}
-                        onClick={() => sendRequestMutation(user._id)}
-                        disabled={hasRequestBeenSent || isPending}
+                        className={`btn w-full mt-2 ${hasRequestBeenSent ? "btn-disabled" : "btn-primary"
+                          } `}
+                        onClick={() => {
+                          setPendingUserId(user._id); // Set the pending ID only for this user
+                          sendRequestMutation(user._id);
+                        }}
+                        disabled={hasRequestBeenSent || pendingUserId === user._id} // Disable when request is pending
                       >
-                        {hasRequestBeenSent ? (
+                        {hasRequestBeenSent || pendingUserId === user._id ? (
                           <>
                             <CheckCircleIcon className="size-4 mr-2" />
-                            Request Sent
+                            {pendingUserId === user._id ? "Sending..." : "Request Sent"}
                           </>
                         ) : (
                           <>

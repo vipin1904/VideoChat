@@ -34,8 +34,10 @@ export async function getUserFriends() {
   return response.data;
 }
 
-export async function getRecommendedUsers() {
-  const response = await axiosInstance.get("/users");
+export async function getRecommendedUsers(params = {}) {
+  const { page = 1, limit = 10, search = "" } = params;
+  const queryString = new URLSearchParams({ page, limit, search }).toString();
+  const response = await axiosInstance.get(`/users?${queryString}`);
   return response.data;
 }
 
@@ -46,6 +48,11 @@ export async function getOutgoingFriendReqs() {
 
 export async function sendFriendRequest(userId) {
   const response = await axiosInstance.post(`/users/friend-request/${userId}`);
+  return response.data;
+}
+
+export async function withdrawFriendRequest(userId) {
+  const response = await axiosInstance.delete(`/users/friend-request/${userId}/withdraw`);
   return response.data;
 }
 

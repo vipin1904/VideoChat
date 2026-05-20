@@ -6,14 +6,37 @@ export async function getRecommendedUsers(req, res) {
     const currentUserId = req.user.id;
     const currentUser = req.user;
 
-    const recommendedUsers = await User.find({
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";
+
+    const query = {
       $and: [
         { _id: { $ne: currentUserId } }, //exclude current user
         { _id: { $nin: currentUser.friends } }, // exclude current user's friends
         { isOnboarded: true },
       ],
+    };
+
+    if (search) {
+      query.$and.push({
+        $or: [
+          { fullName: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ]
+      });
+    }
+
+    const recommendedUsers = await User.find(query).skip(skip).limit(limit);
+    const totalUsers = await User.countDocuments(query);
+
+    res.status(200).json({
+      users: recommendedUsers,
+      total: totalUsers,
+      page,
+      pages: Math.ceil(totalUsers / limit)
     });
-    res.status(200).json(recommendedUsers);
   } catch (error) {
     console.error("Error in getRecommendedUsers controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -114,6 +137,28 @@ export async function acceptFriendRequest(req, res) {
   }
 }
 
+export async function withdrawFriendRequest(req, res) {
+  try {
+    const myId = req.user.id;
+    const { id: recipientId } = req.params;
+
+    const request = await FriendRequest.findOneAndDelete({
+      sender: myId,
+      recipient: recipientId,
+      status: "pending"
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Friend request not found or already accepted" });
+    }
+
+    res.status(200).json({ message: "Friend request withdrawn successfully" });
+  } catch (error) {
+    console.error("Error in withdrawFriendRequest controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function getFriendRequests(req, res) {
   try {
     const incomingReqs = await FriendRequest.find({
@@ -149,16 +194,21 @@ export async function getOutgoingFriendReqs(req, res) {
 
 export async function updateProfile(req, res) {
   try {
-    const { profilePic } = req.body;
+    const { profilePic, fullName, email, bio, location, nativeLanguage, learningLanguage } = req.body;
     const userId = req.user.id;
 
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile picture is required" });
-    }
+    const updateData = {};
+    if (profilePic !== undefined) updateData.profilePic = profilePic;
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (email !== undefined) updateData.email = email;
+    if (bio !== undefined) updateData.bio = bio;
+    if (location !== undefined) updateData.location = location;
+    if (nativeLanguage !== undefined) updateData.nativeLanguage = nativeLanguage;
+    if (learningLanguage !== undefined) updateData.learningLanguage = learningLanguage;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic },
+      updateData,
       { new: true }
     );
 

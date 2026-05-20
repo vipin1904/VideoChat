@@ -4,6 +4,7 @@ import { BellIcon, LogOutIcon, ShipWheelIcon } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
 import ProfileUploader from "./ProfileUploader";
+import { UserCircleIcon } from "lucide-react";
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -45,10 +46,16 @@ const Navbar = () => {
           {/* TODO */}
           <ThemeSelector />
 
+          <Link to={"/profile"}>
+            <button className="btn btn-ghost btn-circle mr-4">
+              <UserCircleIcon className="h-6 w-6 text-base-content opacity-70" />
+            </button>
+          </Link>
+
           <ProfileUploader authUser={authUser} sizeClass="w-9" />
 
           {/* Logout button */}
-          <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
+          <button className="btn btn-ghost btn-circle ml-2" onClick={logoutMutation}>
             <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
           </button>
         </div>

@@ -10,7 +10,7 @@ import {
   Channel,
   ChannelHeader,
   Chat,
-  MessageInput,
+  MessageComposer,
   MessageList,
   Thread,
   Window,
@@ -141,7 +141,7 @@ const ChatPage = () => {
             <Window>
               <ChannelHeader title="VideoChat Conversation" />
               <MessageList />
-              <MessageInput focus />
+              <MessageComposer />
             </Window>
           </div>
           <Thread />

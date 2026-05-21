@@ -28,7 +28,10 @@ export async function getRecommendedUsers(req, res) {
       });
     }
 
-    const recommendedUsers = await User.find(query).skip(skip).limit(limit);
+    const recommendedUsers = await User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
     const totalUsers = await User.countDocuments(query);
 
     res.status(200).json({

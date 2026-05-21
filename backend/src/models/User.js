@@ -51,6 +51,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.index({ isOnboarded: 1, createdAt: -1 });
+userSchema.index({ fullName: 1 });
+
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 

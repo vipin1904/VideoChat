@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
   getOutgoingFriendReqs,
   getRecommendedUsers,
@@ -21,32 +21,23 @@ const HomePage = () => {
   const [pendingUserId, setPendingUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
-
-  const observer = useRef();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(6);
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
-  const { data: recommendedData, isLoading: loadingUsers, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["users", searchQuery],
-    queryFn: ({ pageParam = 1 }) => getRecommendedUsers({ page: pageParam, limit: 6, search: searchQuery }),
-    getNextPageParam: (lastPage) => lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
+  const { data: recommendedData, isLoading: loadingUsers, isPlaceholderData } = useQuery({
+    queryKey: ["users", searchQuery, currentPage, usersPerPage],
+    queryFn: () => getRecommendedUsers({ page: currentPage, limit: usersPerPage, search: searchQuery }),
+    placeholderData: keepPreviousData,
   });
 
-  const recommendedUsers = recommendedData?.pages?.flatMap(page => page.users) || [];
-
-  const lastUserElementRef = useCallback(node => {
-    if (loadingUsers || isFetchingNextPage) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasNextPage) {
-        fetchNextPage();
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [loadingUsers, isFetchingNextPage, hasNextPage, fetchNextPage]);
+  const recommendedUsers = recommendedData?.users || [];
+  const totalPages = recommendedData?.pages || 1;
+  const totalUsers = recommendedData?.total || 0;
 
   const { data: outgoingFriendReqs } = useQuery({
     queryKey: ["outgoingFriendReqs"],
@@ -104,12 +95,14 @@ const HomePage = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchQuery(searchInput);
+    setCurrentPage(1);
   };
 
   const handleClearSearch = () => {
     setSearchInput("");
     setSearchQuery("");
-  }
+    setCurrentPage(1);
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -197,7 +190,6 @@ const HomePage = () => {
                   return (
                     <div
                       key={user._id}
-                      ref={index === recommendedUsers.length - 1 ? lastUserElementRef : null}
                       className="card bg-base-200 hover:shadow-lg transition-all duration-300"
                     >
                       <div className="card-body p-5 space-y-4">
@@ -268,11 +260,83 @@ const HomePage = () => {
                   );
                 })}
               </div>
-              {isFetchingNextPage && (
-                <div className="flex justify-center py-6 mt-4">
-                  <span className="loading loading-spinner loading-md" />
+
+              {/* Pagination Controls */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-base-300">
+                <div className="text-sm opacity-70">
+                  Showing <span className="font-medium">{totalUsers === 0 ? 0 : ((currentPage - 1) * usersPerPage) + 1}</span> to{" "}
+                  <span className="font-medium">
+                    {Math.min(currentPage * usersPerPage, totalUsers)}
+                  </span>{" "}
+                  of <span className="font-medium">{totalUsers}</span> learners
                 </div>
-              )}
+
+                <div className="flex items-center gap-4">
+                  {/* Users per page selector */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="opacity-70">Per page:</span>
+                    <select
+                      className="select select-bordered select-sm"
+                      value={usersPerPage}
+                      onChange={(e) => {
+                        setUsersPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value={6}>6</option>
+                      <option value={12}>12</option>
+                      <option value={24}>24</option>
+                      <option value={48}>48</option>
+                    </select>
+                  </div>
+
+                  <div className="join">
+                    <button
+                      className="join-item btn btn-sm btn-outline"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1 || isPlaceholderData}
+                    >
+                      « Prev
+                    </button>
+                    
+                    {/* Generate page buttons */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => {
+                        // show first, last, current, and adjacent pages
+                        return (
+                          p === 1 ||
+                          p === totalPages ||
+                          Math.abs(p - currentPage) <= 1
+                        );
+                      })
+                      .map((p, idx, arr) => {
+                        const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                        return (
+                          <div key={p} className="flex">
+                            {showEllipsis && <button className="join-item btn btn-sm btn-disabled">...</button>}
+                            <button
+                              className={`join-item btn btn-sm ${
+                                currentPage === p ? "btn-primary" : "btn-outline"
+                              }`}
+                              onClick={() => setCurrentPage(p)}
+                              disabled={isPlaceholderData}
+                            >
+                              {p}
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                    <button
+                      className="join-item btn btn-sm btn-outline"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages || isPlaceholderData}
+                    >
+                      Next »
+                    </button>
+                  </div>
+                </div>
+              </div>
             </>
           )}
         </section>

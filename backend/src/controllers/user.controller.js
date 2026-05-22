@@ -10,6 +10,9 @@ export async function getRecommendedUsers(req, res) {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const search = req.query.search || "";
+    const nativeLanguage = req.query.nativeLanguage || "";
+    const learningLanguage = req.query.learningLanguage || "";
+    const location = req.query.location || "";
 
     const query = {
       $and: [
@@ -28,7 +31,22 @@ export async function getRecommendedUsers(req, res) {
       });
     }
 
-    const recommendedUsers = await User.find(query).skip(skip).limit(limit);
+    if (nativeLanguage) {
+      query.$and.push({ nativeLanguage: nativeLanguage.toLowerCase() });
+    }
+
+    if (learningLanguage) {
+      query.$and.push({ learningLanguage: learningLanguage.toLowerCase() });
+    }
+
+    if (location) {
+      query.$and.push({ location: { $regex: location, $options: "i" } });
+    }
+
+    const recommendedUsers = await User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
     const totalUsers = await User.countDocuments(query);
 
     res.status(200).json({

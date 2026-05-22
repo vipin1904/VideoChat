@@ -35,29 +35,27 @@ const Navbar = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            <Link to={"/notifications"}>
+          <div className="flex items-center gap-1.5 sm:gap-3 ml-auto">
+            <Link to={"/notifications"} className="hidden sm:block">
               <button className="btn btn-ghost btn-circle">
                 <BellIcon className="h-6 w-6 text-base-content opacity-70" />
               </button>
             </Link>
-          </div>
 
-          {/* TODO */}
-          <ThemeSelector />
+            <ThemeSelector />
 
-          <Link to={"/profile"}>
-            <button className="btn btn-ghost btn-circle mr-4">
-              <UserCircleIcon className="h-6 w-6 text-base-content opacity-70" />
+            <Link to={"/profile"}>
+              <button className="btn btn-ghost btn-circle">
+                <UserCircleIcon className="h-6 w-6 text-base-content opacity-70" />
+              </button>
+            </Link>
+
+            <ProfileUploader authUser={authUser} sizeClass="size-8 sm:size-9" />
+
+            <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
+              <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
             </button>
-          </Link>
-
-          <ProfileUploader authUser={authUser} sizeClass="w-9" />
-
-          {/* Logout button */}
-          <button className="btn btn-ghost btn-circle ml-2" onClick={logoutMutation}>
-            <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
-          </button>
+          </div>
         </div>
       </div>
     </nav>

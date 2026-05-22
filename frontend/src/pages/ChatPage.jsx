@@ -41,47 +41,60 @@ const ChatPage = () => {
   });
 
   useEffect(() => {
+    let active = true;
+    let client;
+    
     const initChat = async () => {
       if (!tokenData?.token || !authUser) return;
 
       try {
         console.log("Initializing stream chat client...");
 
-        const client = StreamChat.getInstance(STREAM_API_KEY);
+        client = StreamChat.getInstance(STREAM_API_KEY);
 
-        await client.connectUser(
-          {
-            id: authUser._id,
-            name: authUser.fullName,
-            image: authUser.profilePic,
-          },
-          tokenData.token
-        );
+        // Prevent redundant connections or reconnecting to a different user
+        if (client.userID !== authUser._id) {
+          if (client.userID) {
+            await client.disconnectUser();
+          }
+          await client.connectUser(
+            {
+              id: authUser._id,
+              name: authUser.fullName,
+              image: authUser.profilePic,
+            },
+            tokenData.token
+          );
+        }
 
-        //
         const channelId = [authUser._id, targetUserId].sort().join("-");
-
-        // you and me
-        // if i start the chat => channelId: [myId, yourId]
-        // if you start the chat => channelId: [yourId, myId]  => [myId,yourId]
-
         const currChannel = client.channel("messaging", channelId, {
           members: [authUser._id, targetUserId],
         });
 
         await currChannel.watch();
 
-        setChatClient(client);
-        setChannel(currChannel);
+        if (active) {
+          setChatClient(client);
+          setChannel(currChannel);
+        }
       } catch (error) {
         console.error("Error initializing chat:", error);
-        toast.error("Could not connect to chat. Please try again.");
+        if (active) {
+          toast.error("Could not connect to chat. Please try again.");
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     initChat();
+
+    return () => {
+      active = false;
+    };
   }, [tokenData, authUser, targetUserId]);
 
   const startCall = async (type) => {

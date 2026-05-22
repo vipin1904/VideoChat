@@ -41,11 +41,11 @@ const ProfilePage = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 flex justify-center">
-      <div className="w-full max-w-2xl bg-base-200 rounded-2xl shadow-xl p-8">
+      <div className="w-full max-w-2xl bg-base-200 rounded-2xl shadow-xl p-4 sm:p-8">
         <h2 className="text-3xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Your Profile</h2>
 
         <div className="flex flex-col items-center mb-8">
-          <ProfileUploader authUser={authUser} sizeClass="w-32" />
+          <ProfileUploader authUser={authUser} sizeClass="size-32" />
           <p className="mt-4 text-sm opacity-70">Click avatar to change picture</p>
         </div>
 
@@ -120,7 +120,7 @@ const ProfilePage = () => {
               >
                 <option value="" disabled>Select Language</option>
                 {LANGUAGES.map((lang) => (
-                  <option key={lang} value={lang}>{lang}</option>
+                  <option key={lang} value={lang.toLowerCase()}>{lang}</option>
                 ))}
               </select>
             </div>
@@ -136,7 +136,7 @@ const ProfilePage = () => {
               >
                 <option value="" disabled>Select Language</option>
                 {LANGUAGES.map((lang) => (
-                  <option key={lang} value={lang}>{lang}</option>
+                  <option key={lang} value={lang.toLowerCase()}>{lang}</option>
                 ))}
               </select>
             </div>

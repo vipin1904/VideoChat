@@ -36,11 +36,13 @@ const CallPage = () => {
   });
 
   useEffect(() => {
+    let callInstance;
+    
     const initCall = async () => {
       if (!tokenData?.token || !authUser || !callId || !videoClient) return;
 
       try {
-        const callInstance = videoClient.call("default", callId);
+        callInstance = videoClient.call("default", callId);
         await callInstance.join({ create: true });
         setCall(callInstance);
       } catch (error) {
@@ -52,6 +54,12 @@ const CallPage = () => {
     };
 
     initCall();
+
+    return () => {
+      if (callInstance) {
+        callInstance.leave().catch(console.error);
+      }
+    };
   }, [tokenData, authUser, callId, videoClient]);
 
   if (isLoading || isConnecting) return <PageLoader />;

@@ -59,6 +59,9 @@ const userSocketMap = {}; // userId -> socket.id
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
+  // Immediately request registration from the newly connected client socket
+  socket.emit("requestRegister");
+
   socket.on("register", (userId) => {
     if (userId) {
       userSocketMap[userId] = socket.id;

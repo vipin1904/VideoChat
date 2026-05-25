@@ -26,10 +26,13 @@ const FriendCard = ({ friend }) => {
         </div>
 
         <div className="flex flex-col gap-2 mt-4">
-          <Link to={`/chat/${friend._id}`} className="btn btn-outline btn-sm w-full">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-            Message
-          </Link>
+          <div className="flex gap-2">
+            <Link to={`/chat/${friend._id}`} className="btn btn-outline btn-sm flex-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              Message
+            </Link>
+            <ClearChatButton friendId={friend._id} />
+          </div>
           <button 
             onClick={() => {
               const myId = JSON.parse(localStorage.getItem('chat-user-cache') || '{}')._id; // Fast lookup if available, otherwise just rely on chat page or use window location logic
@@ -49,11 +52,37 @@ const FriendCard = ({ friend }) => {
   );
 };
 
+const ClearChatButton = ({ friendId }) => {
+  const handleClear = async () => {
+    if (window.confirm("Are you sure you want to clear the entire chat history for this user from the database?")) {
+      try {
+        await clearChatHistory(friendId);
+        toast.success("Chat history cleared!");
+      } catch (err) {
+        console.error("Failed to clear chat:", err);
+        toast.error("Could not clear chat history.");
+      }
+    }
+  };
+
+  return (
+    <button 
+      onClick={handleClear} 
+      className="btn btn-outline btn-error btn-sm px-2.5 flex items-center justify-center" 
+      title="Clear Chat History"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    </button>
+  );
+};
+
 import useAuthUser from "../hooks/useAuthUser";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
-import { getStreamToken } from "../lib/api";
+import { getStreamToken, clearChatHistory } from "../lib/api";
 import { StreamChat } from "stream-chat";
 import { useCallStore } from "../store/useCallStore";
 

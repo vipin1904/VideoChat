@@ -91,6 +91,11 @@ export async function sendChatMessage(targetUserId, text, file = "", fileType = 
   return response.data;
 }
 
+export async function clearChatHistory(targetUserId) {
+  const response = await axiosInstance.delete(`/chat/messages/${targetUserId}`);
+  return response.data;
+}
+
 export async function updateProfile(profileData) {
   const response = await axiosInstance.put("/users/profile", profileData);
   return response.data;

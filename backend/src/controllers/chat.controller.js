@@ -59,3 +59,23 @@ export async function sendMessage(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+export async function clearChat(req, res) {
+  try {
+    const { id: targetUserId } = req.params;
+    const myId = req.user._id;
+
+    // Delete all messages between current user and target user
+    await Message.deleteMany({
+      $or: [
+        { senderId: myId, receiverId: targetUserId },
+        { senderId: targetUserId, receiverId: myId },
+      ],
+    });
+
+    res.status(200).json({ success: true, message: "Chat history cleared successfully" });
+  } catch (error) {
+    console.log("Error in clearChat controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}

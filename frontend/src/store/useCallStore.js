@@ -95,6 +95,7 @@ export const useCallStore = create((set, get) => ({
   callDuration: 0,
   timerInterval: null,
   isMinimized: false,
+  connectionTimeout: null,
 
   // Current user profile details
   currentUser: null,
@@ -123,12 +124,17 @@ export const useCallStore = create((set, get) => ({
     socket.off("connect", registerUser); // prevent duplicates
     socket.on("connect", registerUser);
 
+    // Bind requestRegister event so server can trigger registration dynamically
+    socket.off("requestRegister", registerUser);
+    socket.on("requestRegister", registerUser);
+
     set({ socket });
   },
 
   // Disconnect socket connection
   disconnectSocket: () => {
     socket.off("connect");
+    socket.off("requestRegister");
     if (socket.connected) {
       socket.disconnect();
     }
@@ -160,6 +166,13 @@ export const useCallStore = create((set, get) => ({
     if (pc) {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(signal));
+        
+        // Clear connection timeout
+        if (get().connectionTimeout) {
+          clearTimeout(get().connectionTimeout);
+          set({ connectionTimeout: null });
+        }
+
         get().startCallTimer();
         set({ callState: "active" });
 
@@ -231,6 +244,16 @@ export const useCallStore = create((set, get) => ({
       isMinimized: false,
       pendingIceCandidates: [],
     });
+
+    // Set 15-second connection timeout to prevent permanent connecting hangs
+    if (get().connectionTimeout) clearTimeout(get().connectionTimeout);
+    const timeout = setTimeout(() => {
+      if (get().callState === "connecting") {
+        toast.error("Call connection timed out");
+        get().endCall();
+      }
+    }, 15000);
+    set({ connectionTimeout: timeout });
 
     try {
       // Get Media Stream
@@ -309,6 +332,16 @@ export const useCallStore = create((set, get) => ({
     const pendingSignal = get().pendingSignal;
 
     set({ callState: "connecting" });
+
+    // Set 15-second connection timeout to prevent permanent connecting hangs
+    if (get().connectionTimeout) clearTimeout(get().connectionTimeout);
+    const timeout = setTimeout(() => {
+      if (get().callState === "connecting") {
+        toast.error("Call connection timed out");
+        get().endCall();
+      }
+    }, 15000);
+    set({ connectionTimeout: timeout });
 
     try {
       // Get local stream
@@ -461,6 +494,11 @@ export const useCallStore = create((set, get) => ({
 
     const state = get();
 
+    // Clear connection timeout
+    if (state.connectionTimeout) {
+      clearTimeout(state.connectionTimeout);
+    }
+
     // 1. Stop all media tracks
     if (state.localStream) {
       state.localStream.getTracks().forEach((track) => {
@@ -503,6 +541,7 @@ export const useCallStore = create((set, get) => ({
       callDuration: 0,
       timerInterval: null,
       isMinimized: false,
+      connectionTimeout: null,
     });
   },
 }));

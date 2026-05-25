@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMessages, sendChatMessage, getUserFriends } from "../lib/api";
+import { getMessages, sendChatMessage, getUserFriends, clearChatHistory } from "../lib/api";
 import { getAvatarUrl } from "../lib/utils";
 import toast from "react-hot-toast";
 
@@ -174,6 +174,20 @@ const ChatPage = () => {
     }
   };
 
+  const handleClearChat = async () => {
+    if (!targetUserId) return;
+    if (window.confirm("Are you sure you want to clear this entire chat history from the database?")) {
+      try {
+        await clearChatHistory(targetUserId);
+        setMessages([]);
+        toast.success("Chat history cleared!");
+      } catch (err) {
+        console.error("Failed to clear chat:", err);
+        toast.error("Could not clear chat history.");
+      }
+    }
+  };
+
   const formatMessageTime = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -244,6 +258,14 @@ const ChatPage = () => {
             disabled={!otherUser}
           >
             <VideoIcon className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={handleClearChat} 
+            className="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/20 hover:scale-105 transition-all" 
+            title="Clear Chat History"
+            disabled={!otherUser}
+          >
+            <Trash2Icon className="w-5 h-5" />
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { LANGUAGE_TO_FLAG } from "../constants";
-import { capitialize } from "../lib/utils";
+import { capitialize, getAvatarUrl } from "../lib/utils";
 
 const FriendCard = ({ friend }) => {
   return (
@@ -9,7 +9,7 @@ const FriendCard = ({ friend }) => {
         {/* USER INFO */}
         <div className="flex items-center gap-3 mb-3">
           <div className="avatar size-12">
-            <img src={friend.profilePic} alt={friend.fullName} />
+            <img src={getAvatarUrl(friend._id)} alt={friend.fullName} />
           </div>
           <h3 className="font-semibold truncate">{friend.fullName}</h3>
         </div>
@@ -42,7 +42,7 @@ const FriendCard = ({ friend }) => {
             Video Call
           </button>
           
-          <CallActionButton friendId={friend._id} />
+          <CallActionButton friend={friend} />
         </div>
       </div>
     </div>
@@ -50,38 +50,57 @@ const FriendCard = ({ friend }) => {
 };
 
 import useAuthUser from "../hooks/useAuthUser";
-import { useStreamVideoClient } from "@stream-io/video-react-sdk";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
+import { useQuery } from "@tanstack/react-query";
+import { getStreamToken } from "../lib/api";
+import { StreamChat } from "stream-chat";
+import { useCallStore } from "../store/useCallStore";
 
-const CallActionButton = ({ friendId }) => {
+const CallActionButton = ({ friend }) => {
   const { authUser } = useAuthUser();
-  const videoClient = useStreamVideoClient();
   const navigate = useNavigate();
+  const { initiateCall } = useCallStore();
+  
+  const { data: tokenData } = useQuery({
+    queryKey: ["streamToken"],
+    queryFn: getStreamToken,
+    enabled: !!authUser,
+  });
 
-  if(!authUser) return null;
+  if(!authUser || !friend) return null;
 
   const startCall = async (type) => {
-    if (!videoClient) {
-      toast.error("Video client not ready");
-      return;
-    }
-    const channelId = [authUser._id, friendId].sort().join("-");
-    const call = videoClient.call("default", channelId);
-    
-    try {
-      await call.getOrCreate({
-        ring: true,
-        data: {
-          members: [{ user_id: authUser._id }, { user_id: friendId }],
-          custom: { type } // Store whether it's audio or video
+    // Initiate WebRTC call via socket.io signaling
+    await initiateCall(friend._id, friend.fullName, type);
+
+    // Send call invitation via chat (keeps existing chat history sync)
+    if (tokenData?.token) {
+      try {
+        const chatClient = StreamChat.getInstance(import.meta.env.VITE_STREAM_API_KEY);
+        if (!chatClient.userID) {
+          await chatClient.connectUser(
+            {
+              id: authUser._id,
+              name: authUser.fullName,
+              image: getAvatarUrl(authUser._id),
+            },
+            tokenData.token
+          );
         }
-      });
-      navigate(`/call/${channelId}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to start call");
+        const channelId = [authUser._id, friend._id].sort().join("-");
+        const channel = chatClient.channel("messaging", channelId, {
+          members: [authUser._id, friend._id],
+        });
+        await channel.sendMessage({
+          text: `📞 Started a ${type} call. Join here: ${window.location.origin}/call/${authUser._id}`,
+        });
+      } catch (chatErr) {
+        console.error("Failed to send call notification in chat:", chatErr);
+      }
     }
+
+    navigate(`/call/${friend._id}`);
   };
 
   return (

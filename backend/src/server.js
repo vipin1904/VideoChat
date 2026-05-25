@@ -3,6 +3,12 @@ import "dotenv/config";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
+import dns from "dns";
+import http from "http";
+import { Server } from "socket.io";
+
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -12,6 +18,15 @@ import { connectDB } from "./lib/db.js";
 
 const app = express();
 const PORT = process.env.PORT;
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 
 const __dirname = path.resolve();
 
@@ -38,11 +53,93 @@ if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
   });
 }
 
+// User-socket mapping
+const userSocketMap = {}; // userId -> socket.id
+
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("register", (userId) => {
+    if (userId) {
+      userSocketMap[userId] = socket.id;
+      console.log(`User registered: ${userId} -> ${socket.id}`);
+    }
+  });
+
+  socket.on("callUser", ({ userToCall, signalData, from, fromName, type }) => {
+    const targetSocket = userSocketMap[userToCall];
+    if (targetSocket) {
+      io.to(targetSocket).emit("callIncoming", {
+        signal: signalData,
+        from,
+        fromName,
+        type, // 'audio' or 'video'
+      });
+    } else {
+      socket.emit("callRejected", { reason: "User offline" });
+    }
+  });
+
+  socket.on("callAccepted", ({ to, signal }) => {
+    const targetSocket = userSocketMap[to];
+    if (targetSocket) {
+      io.to(targetSocket).emit("callAccepted", { signal });
+    }
+  });
+
+  socket.on("callRejected", ({ to }) => {
+    const targetSocket = userSocketMap[to];
+    if (targetSocket) {
+      io.to(targetSocket).emit("callRejected");
+    }
+  });
+
+  socket.on("callCancelled", ({ to }) => {
+    const targetSocket = userSocketMap[to];
+    if (targetSocket) {
+      io.to(targetSocket).emit("callCancelled");
+    }
+  });
+
+  socket.on("callEnded", ({ to }) => {
+    const targetSocket = userSocketMap[to];
+    if (targetSocket) {
+      io.to(targetSocket).emit("callEnded");
+    }
+  });
+
+  socket.on("iceCandidate", ({ to, candidate }) => {
+    const targetSocket = userSocketMap[to];
+    if (targetSocket) {
+      io.to(targetSocket).emit("iceCandidate", { candidate });
+    }
+  });
+
+  socket.on("sendMessage", (data) => {
+    const { senderId, receiverId, message } = data;
+    const targetSocket = userSocketMap[receiverId];
+    if (targetSocket) {
+      io.to(targetSocket).emit("receiveMessage", data);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+    for (const userId in userSocketMap) {
+      if (userSocketMap[userId] === socket.id) {
+        delete userSocketMap[userId];
+        console.log(`Unregistered user: ${userId}`);
+        break;
+      }
+    }
+  });
+});
+
 // Invoke connectDB so we cache on boot or invocation
 connectDB();
 
 if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
 }

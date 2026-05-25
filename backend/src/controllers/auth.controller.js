@@ -33,10 +33,11 @@ export async function signup(req, res) {
     });
 
     try {
+      const { getBackendAvatarUrl } = await import("../lib/stream.js");
       await upsertStreamUser({
         id: newUser._id.toString(),
         name: newUser.fullName,
-        image: newUser.profilePic || "",
+        image: getBackendAvatarUrl(newUser._id),
       });
       console.log(`Stream user created for ${newUser.fullName}`);
     } catch (error) {
@@ -54,7 +55,11 @@ export async function signup(req, res) {
       secure: process.env.NODE_ENV === "production",
     });
 
-    res.status(201).json({ success: true, user: newUser });
+    const userResponse = newUser.toObject();
+    delete userResponse.password;
+    delete userResponse.profilePic;
+
+    res.status(201).json({ success: true, user: userResponse });
   } catch (error) {
     console.log("Error in signup controller", error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -86,7 +91,11 @@ export async function login(req, res) {
       secure: process.env.NODE_ENV === "production",
     });
 
-    res.status(200).json({ success: true, user });
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    delete userResponse.profilePic;
+
+    res.status(200).json({ success: true, user: userResponse });
   } catch (error) {
     console.log("Error in login controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -129,17 +138,21 @@ export async function onboard(req, res) {
     if (!updatedUser) return res.status(404).json({ message: "User not found" });
 
     try {
+      const { getBackendAvatarUrl } = await import("../lib/stream.js");
       await upsertStreamUser({
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
+        image: getBackendAvatarUrl(updatedUser._id),
       });
       console.log(`Stream user updated after onboarding for ${updatedUser.fullName}`);
     } catch (streamError) {
       console.log("Error updating Stream user during onboarding:", streamError.message);
     }
 
-    res.status(200).json({ success: true, user: updatedUser });
+    const userResponse = updatedUser.toObject();
+    delete userResponse.profilePic;
+
+    res.status(200).json({ success: true, user: userResponse });
   } catch (error) {
     console.error("Onboarding error:", error);
     res.status(500).json({ message: "Internal Server Error" });

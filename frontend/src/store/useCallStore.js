@@ -81,6 +81,8 @@ export const useCallStore = create((set, get) => ({
   calleeName: null,
   callType: "video", // 'audio' | 'video'
   isCaller: false,
+  isRoomCall: false,
+  roomCallId: null,
 
   // Stream references
   localStream: null,
@@ -438,6 +440,10 @@ export const useCallStore = create((set, get) => ({
 
   // End active call (Either side) / Cancel call (Caller) (Flow 3/4)
   endCall: () => {
+    if (get().isRoomCall) {
+      get().leaveRoomCall();
+      return;
+    }
     const targetId = get().isCaller ? get().calleeId : get().callerId;
     if (targetId) {
       if (get().callState === "connecting" && get().isCaller) {
@@ -488,6 +494,185 @@ export const useCallStore = create((set, get) => ({
     set({ timerInterval: interval });
   },
 
+  // Join Room-Based call (Link Invitation)
+  joinRoomCall: async (roomId, type, authUser) => {
+    if (get().callState !== "idle" && get().roomCallId === roomId) {
+      return; // Already connected/connecting in this room
+    }
+
+    get().resetCallState();
+
+    set({
+      callState: "connecting",
+      callType: type,
+      isRoomCall: true,
+      roomCallId: roomId,
+      isCaller: false, // will resolve dynamically
+      isMinimized: false,
+      callerName: authUser.fullName,
+      calleeName: "Room Participant",
+    });
+
+    console.log(`[Room Call] Joining Room ${roomId} as ${authUser.fullName}`);
+
+    // connection timeout safeguard (25s)
+    if (get().connectionTimeout) clearTimeout(get().connectionTimeout);
+    const timeout = setTimeout(() => {
+      if (get().callState === "connecting" && !get().remoteStream) {
+        toast.error("Call connection timed out");
+        get().leaveRoomCall();
+      }
+    }, 25000);
+    set({ connectionTimeout: timeout });
+
+    try {
+      // Get Media stream
+      const constraints = {
+        audio: true,
+        video: type === "video",
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      set({ localStream: stream });
+
+      // Create WebRTC Peer connection
+      const pc = new RTCPeerConnection(ICE_SERVERS);
+      set({ peerConnection: pc });
+
+      pc.onconnectionstatechange = () => {
+        console.log(`[Room Call] WebRTC State Changed: ${pc.connectionState}`);
+        if (
+          pc.connectionState === "disconnected" ||
+          pc.connectionState === "failed" ||
+          pc.connectionState === "closed"
+        ) {
+          toast("Room call connection lost", { duration: 3000 });
+          get().resetCallState();
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit("roomIceCandidate", {
+            roomId,
+            candidate: event.candidate,
+          });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          console.log("[Room Call] Received remote track stream!");
+          set({ remoteStream: event.streams[0] });
+
+          if (get().connectionTimeout) {
+            clearTimeout(get().connectionTimeout);
+            set({ connectionTimeout: null });
+          }
+          get().startCallTimer();
+          set({ callState: "active" });
+        }
+      };
+
+      // Add local tracks to peer connection
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+
+      // Bind Socket Room Call Listeners (Off duplicates first)
+      socket.off("roomUserJoined");
+      socket.off("roomSignal");
+      socket.off("roomIceCandidate");
+      socket.off("roomCallEnded");
+
+      // Peer joined -> we are the initiator (caller)
+      socket.on("roomUserJoined", async ({ userId, fullName }) => {
+        console.log(`[Room Call] Peer joined: ${fullName} (${userId}). Creating offer.`);
+        set({ isCaller: true, calleeName: fullName });
+
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.emit("roomSignal", { roomId, signalData: offer });
+        } catch (err) {
+          console.error("[Room Call] Failed to create offer:", err);
+        }
+      });
+
+      // Receive WebRTC Signal (Offer/Answer)
+      socket.on("roomSignal", async ({ signalData }) => {
+        console.log(`[Room Call] Received signal: ${signalData.type}`);
+        try {
+          if (signalData.type === "offer") {
+            // We are the callee (answerer)
+            set({ isCaller: false });
+            await pc.setRemoteDescription(new RTCSessionDescription(signalData));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit("roomSignal", { roomId, signalData: answer });
+          } else if (signalData.type === "answer") {
+            // We are the caller (initiator), process answer
+            await pc.setRemoteDescription(new RTCSessionDescription(signalData));
+
+            if (get().connectionTimeout) {
+              clearTimeout(get().connectionTimeout);
+              set({ connectionTimeout: null });
+            }
+            get().startCallTimer();
+            set({ callState: "active" });
+          }
+        } catch (err) {
+          console.error("[Room Call] Signal process error:", err);
+        }
+      });
+
+      // Receive remote ICE candidate
+      socket.on("roomIceCandidate", async ({ candidate }) => {
+        try {
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+        } catch (err) {
+          console.error("[Room Call] Add candidate error:", err);
+        }
+      });
+
+      // Receiver ended call
+      socket.on("roomCallEnded", () => {
+        toast("The other participant left the call room.");
+        get().resetCallState();
+      });
+
+      // Join the socket room call
+      socket.emit("joinRoomCall", {
+        roomId,
+        userId: authUser._id,
+        fullName: authUser.fullName,
+        type,
+      });
+
+    } catch (err) {
+      console.error("[Room Call] Join error:", err);
+      toast.error("Could not access camera or microphone");
+      get().resetCallState();
+    }
+  },
+
+  // Leave active Room-Based call room
+  leaveRoomCall: () => {
+    const roomId = get().roomCallId;
+    if (roomId) {
+      socket.emit("leaveRoomCall", { roomId });
+    }
+
+    // Clean up room listeners
+    socket.off("roomUserJoined");
+    socket.off("roomSignal");
+    socket.off("roomIceCandidate");
+    socket.off("roomCallEnded");
+
+    get().resetCallState();
+  },
+
   // RESET ALL STATE AND STOP RESOURCES (Flow 4)
   resetCallState: () => {
     ringtone.stop();
@@ -531,6 +716,8 @@ export const useCallStore = create((set, get) => ({
       callerName: null,
       calleeName: null,
       isCaller: false,
+      isRoomCall: false,
+      roomCallId: null,
       localStream: null,
       remoteStream: null,
       peerConnection: null,

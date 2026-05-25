@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useCallStore } from "../store/useCallStore";
+import useAuthUser from "../hooks/useAuthUser";
 import { 
   Mic, 
   MicOff, 
@@ -33,6 +34,8 @@ import {
 const CallPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { id: roomId } = useParams();
+  const { authUser } = useAuthUser();
 
   const {
     callState,
@@ -194,9 +197,26 @@ const CallPage = () => {
     };
   }, []);
 
-  // Auto redirect to home if no active call
+  const isRoom = roomId && roomId.startsWith("room-");
+  const hasJoinedRef = useRef(false);
+
+  // Auto redirect to home if no active call OR join if room link is clicked
   useEffect(() => {
-    if (callState === "idle") {
+    if (isRoom && authUser) {
+      if (!hasJoinedRef.current) {
+        hasJoinedRef.current = true;
+        const searchParams = new URLSearchParams(window.location.search);
+        const callTypeFromUrl = searchParams.get("type") || "video";
+        useCallStore.getState().joinRoomCall(roomId, callTypeFromUrl, authUser);
+      }
+    } else if (callState === "idle" && !isRoom) {
+      navigate("/");
+    }
+  }, [isRoom, roomId, authUser, navigate, callState]);
+
+  // Navigate back to home once a joined room call transitions to idle (ended or disconnected)
+  useEffect(() => {
+    if (callState === "idle" && hasJoinedRef.current) {
       navigate("/");
     }
   }, [callState, navigate]);

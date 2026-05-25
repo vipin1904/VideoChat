@@ -75,10 +75,10 @@ const ChatPage = () => {
     }
 
     try {
-      // Initiate WebRTC call via socket.io signaling
-      await initiateCall(targetUserId, otherUser.fullName, type);
-
-      const logText = `📞 Started a ${type} call. Join here.`;
+      const roomId = `room-${Math.random().toString(36).substring(2, 11)}`;
+      const logText = type === "video" 
+        ? `🎥 Join my video call: http://localhost:5173/call/${roomId}?type=video`
+        : `📞 Join my voice call: http://localhost:5173/call/${roomId}?type=audio`;
 
       // Save call invitation notification to chat history
       const persistedMsg = await sendChatMessage(targetUserId, logText);
@@ -94,7 +94,7 @@ const ChatPage = () => {
       socket.emit("sendMessage", newMsg);
       setMessages((prev) => [...prev, newMsg]);
 
-      navigate(`/call/${targetUserId}`);
+      navigate(`/call/${roomId}?type=${type}`);
     } catch (error) {
       console.error(error);
       toast.error("Failed to start call");
@@ -344,7 +344,35 @@ const ChatPage = () => {
                   )}
 
                   {msg.text && (
-                    <p className="text-sm break-words whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                    msg.text.includes("/call/room-") ? (
+                      <div className="flex flex-col gap-3 p-1 min-w-[200px] sm:min-w-[240px]">
+                        <div className="flex items-center gap-3">
+                          <div className={`size-10 rounded-full flex items-center justify-center ${msg.text.includes("type=video") ? "bg-red-500/20 text-red-500" : "bg-emerald-500/20 text-emerald-500"} shrink-0 shadow-inner`}>
+                            {msg.text.includes("type=video") ? <VideoIcon className="size-5" /> : <PhoneIcon className="size-5" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold truncate text-base-content">{msg.text.includes("type=video") ? "Video Call Invitation" : "Voice Call Invitation"}</p>
+                            <p className="text-[10px] opacity-75 truncate text-base-content/85">Join to start talking</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const match = msg.text.match(/\/call\/(room-[^\s\?]+)/);
+                            const typeMatch = msg.text.match(/type=(video|audio)/);
+                            if (match) {
+                              const roomId = match[1];
+                              const type = typeMatch ? typeMatch[1] : "video";
+                              navigate(`/call/${roomId}?type=${type}`);
+                            }
+                          }}
+                          className={`btn btn-xs sm:btn-sm w-full rounded-xl border-none shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-white font-extrabold ${msg.text.includes("type=video") ? "bg-red-500 hover:bg-red-600" : "bg-emerald-500 hover:bg-emerald-600"}`}
+                        >
+                          Join Call
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm break-words whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                    )
                   )}
                 </div>
                 

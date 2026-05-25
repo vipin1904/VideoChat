@@ -118,6 +118,42 @@ io.on("connection", (socket) => {
     }
   });
 
+  // --- Room-Based WebRTC Calling ---
+  socket.on("joinRoomCall", ({ roomId, userId, fullName, type }) => {
+    socket.join(roomId);
+    console.log(`User ${fullName} (${userId}) joined room call: ${roomId}`);
+    
+    // Notify other peers in the room that a new user has joined
+    socket.to(roomId).emit("roomUserJoined", {
+      userId,
+      fullName,
+      socketId: socket.id,
+      type
+    });
+  });
+
+  socket.on("roomSignal", ({ roomId, signalData }) => {
+    // Broadcast WebRTC SDP signal (Offer/Answer) to all other room members
+    socket.to(roomId).emit("roomSignal", {
+      signalData,
+      fromSocketId: socket.id
+    });
+  });
+
+  socket.on("roomIceCandidate", ({ roomId, candidate }) => {
+    // Broadcast WebRTC ICE candidate to all other room members
+    socket.to(roomId).emit("roomIceCandidate", {
+      candidate,
+      fromSocketId: socket.id
+    });
+  });
+
+  socket.on("leaveRoomCall", ({ roomId }) => {
+    socket.leave(roomId);
+    console.log(`Socket ${socket.id} left room call: ${roomId}`);
+    socket.to(roomId).emit("roomCallEnded");
+  });
+
   socket.on("sendMessage", (data) => {
     const { senderId, receiverId, message } = data;
     const targetSocket = userSocketMap[receiverId];

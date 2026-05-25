@@ -82,14 +82,13 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
-import { getStreamToken, clearChatHistory } from "../lib/api";
-import { StreamChat } from "stream-chat";
+import { getStreamToken, clearChatHistory, sendChatMessage } from "../lib/api";
 import { useCallStore } from "../store/useCallStore";
+import { socket } from "../lib/socket";
 
 const CallActionButton = ({ friend }) => {
   const { authUser } = useAuthUser();
   const navigate = useNavigate();
-  const { initiateCall } = useCallStore();
   
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
@@ -100,36 +99,35 @@ const CallActionButton = ({ friend }) => {
   if(!authUser || !friend) return null;
 
   const startCall = async (type) => {
-    // Initiate WebRTC call via socket.io signaling
-    await initiateCall(friend._id, friend.fullName, type);
+    try {
+      const roomId = `room-${Math.random().toString(36).substring(2, 11)}`;
+      const logText = type === "video" 
+        ? `🎥 Join my video call: http://localhost:5173/call/${roomId}?type=video`
+        : `📞 Join my voice call: http://localhost:5173/call/${roomId}?type=audio`;
 
-    // Send call invitation via chat (keeps existing chat history sync)
-    if (tokenData?.token) {
-      try {
-        const chatClient = StreamChat.getInstance(import.meta.env.VITE_STREAM_API_KEY);
-        if (!chatClient.userID) {
-          await chatClient.connectUser(
-            {
-              id: authUser._id,
-              name: authUser.fullName,
-              image: getAvatarUrl(authUser._id),
-            },
-            tokenData.token
-          );
-        }
-        const channelId = [authUser._id, friend._id].sort().join("-");
-        const channel = chatClient.channel("messaging", channelId, {
-          members: [authUser._id, friend._id],
-        });
-        await channel.sendMessage({
-          text: `📞 Started a ${type} call. Join here: ${window.location.origin}/call/${authUser._id}`,
-        });
-      } catch (chatErr) {
-        console.error("Failed to send call notification in chat:", chatErr);
+      // Save call invitation notification to chat history
+      const persistedMsg = await sendChatMessage(friend._id, logText);
+
+      // Emit real-time message to let the other user see the log immediately
+      const newMsg = {
+        _id: persistedMsg._id,
+        senderId: authUser._id,
+        receiverId: friend._id,
+        text: logText,
+        createdAt: persistedMsg.createdAt || new Date().toISOString(),
+      };
+      
+      if (!socket.connected) {
+        socket.connect();
       }
-    }
+      
+      socket.emit("sendMessage", newMsg);
 
-    navigate(`/call/${friend._id}`);
+      navigate(`/call/${roomId}?type=${type}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to start call");
+    }
   };
 
   return (

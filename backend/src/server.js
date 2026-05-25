@@ -69,97 +69,29 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("callUser", ({ userToCall, signalData, from, fromName, type }) => {
-    const targetSocket = userSocketMap[userToCall];
-    if (targetSocket) {
-      io.to(targetSocket).emit("callIncoming", {
-        signal: signalData,
-        from,
-        fromName,
-        type, // 'audio' or 'video'
-      });
-    } else {
-      socket.emit("callRejected", { reason: "User offline" });
-    }
-  });
-
-  socket.on("callAccepted", ({ to, signal }) => {
-    const targetSocket = userSocketMap[to];
-    if (targetSocket) {
-      io.to(targetSocket).emit("callAccepted", { signal });
-    }
-  });
-
-  socket.on("callRejected", ({ to }) => {
-    const targetSocket = userSocketMap[to];
-    if (targetSocket) {
-      io.to(targetSocket).emit("callRejected");
-    }
-  });
-
-  socket.on("callCancelled", ({ to }) => {
-    const targetSocket = userSocketMap[to];
-    if (targetSocket) {
-      io.to(targetSocket).emit("callCancelled");
-    }
-  });
-
-  socket.on("callEnded", ({ to }) => {
-    const targetSocket = userSocketMap[to];
-    if (targetSocket) {
-      io.to(targetSocket).emit("callEnded");
-    }
-  });
-
-  socket.on("iceCandidate", ({ to, candidate }) => {
-    const targetSocket = userSocketMap[to];
-    if (targetSocket) {
-      io.to(targetSocket).emit("iceCandidate", { candidate });
-    }
-  });
-
-  // --- Room-Based WebRTC Calling ---
-  socket.on("joinRoomCall", ({ roomId, userId, fullName, type }) => {
+  // --- Real-time Chat Room Support ---
+  socket.on("joinChatRoom", ({ roomId }) => {
     socket.join(roomId);
-    console.log(`User ${fullName} (${userId}) joined room call: ${roomId}`);
-    
-    // Notify other peers in the room that a new user has joined
-    socket.to(roomId).emit("roomUserJoined", {
-      userId,
-      fullName,
-      socketId: socket.id,
-      type
-    });
+    console.log(`Socket ${socket.id} joined chat room: ${roomId}`);
   });
 
-  socket.on("roomSignal", ({ roomId, signalData }) => {
-    // Broadcast WebRTC SDP signal (Offer/Answer) to all other room members
-    socket.to(roomId).emit("roomSignal", {
-      signalData,
-      fromSocketId: socket.id
-    });
-  });
-
-  socket.on("roomIceCandidate", ({ roomId, candidate }) => {
-    // Broadcast WebRTC ICE candidate to all other room members
-    socket.to(roomId).emit("roomIceCandidate", {
-      candidate,
-      fromSocketId: socket.id
-    });
-  });
-
-  socket.on("leaveRoomCall", ({ roomId }) => {
+  socket.on("leaveChatRoom", ({ roomId }) => {
     socket.leave(roomId);
-    console.log(`Socket ${socket.id} left room call: ${roomId}`);
-    socket.to(roomId).emit("roomCallEnded");
+    console.log(`Socket ${socket.id} left chat room: ${roomId}`);
   });
 
   socket.on("sendMessage", (data) => {
-    const { senderId, receiverId, message } = data;
+    const { senderId, receiverId } = data;
+    
+    // 1. Direct delivery via registered user socket mapping
     const targetSocket = userSocketMap[receiverId];
     if (targetSocket) {
       io.to(targetSocket).emit("receiveMessage", data);
     }
+
+    // 2. Room-based live sync delivery (for foolproof instant chat updates)
+    const chatRoomId = [senderId, receiverId].sort().join("_");
+    socket.to(chatRoomId).emit("receiveMessage", data);
   });
 
   socket.on("disconnect", () => {

@@ -53,6 +53,25 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Ensure the Socket connection is fully initialized and registered upon mounting the Chat Page
+  useEffect(() => {
+    if (authUser) {
+      useCallStore.getState().initSocket(authUser);
+    }
+  }, [authUser]);
+
+  // Join the conversation-specific socket.io room for foolproof instant updates
+  useEffect(() => {
+    if (!authUser?._id || !targetUserId) return;
+    
+    const chatRoomId = [authUser._id, targetUserId].sort().join("_");
+    socket.emit("joinChatRoom", { roomId: chatRoomId });
+    
+    return () => {
+      socket.emit("leaveChatRoom", { roomId: chatRoomId });
+    };
+  }, [authUser, targetUserId]);
+
   // Handle Socket.io real-time message events (Fully reactive)
   useEffect(() => {
     const handleReceiveMessage = (data) => {

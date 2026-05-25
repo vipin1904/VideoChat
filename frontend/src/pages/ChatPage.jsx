@@ -1,158 +1,96 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { useQuery } from "@tanstack/react-query";
-import { getStreamToken } from "../lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getMessages, sendChatMessage, getUserFriends } from "../lib/api";
 import { getAvatarUrl } from "../lib/utils";
-import { useStreamVideoClient } from "@stream-io/video-react-sdk";
-import { useNavigate } from "react-router";
-
-import {
-  Channel,
-  ChannelHeader,
-  Chat,
-  MessageComposer,
-  MessageList,
-  Thread,
-  Window,
-} from "stream-chat-react";
-import { StreamChat } from "stream-chat";
 import toast from "react-hot-toast";
 
-import ChatLoader from "../components/ChatLoader";
-import { PhoneIcon, VideoIcon, Trash2Icon } from "lucide-react";
+import { PhoneIcon, VideoIcon, Trash2Icon, ArrowLeft, Send } from "lucide-react";
 import { useCallStore } from "../store/useCallStore";
 import { socket } from "../lib/socket";
-
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+import { getLanguageFlag } from "../components/FriendCard";
+import ChatLoader from "../components/ChatLoader";
 
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
-  const { initiateCall } = useCallStore();
-
-  const [chatClient, setChatClient] = useState(null);
-  const [channel, setChannel] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const videoClient = useStreamVideoClient();
   const navigate = useNavigate();
-
+  const queryClient = useQueryClient();
+  const { initiateCall } = useCallStore();
   const { authUser } = useAuthUser();
 
-  const { data: tokenData, isError: isTokenError } = useQuery({
-    queryKey: ["streamToken"],
-    queryFn: getStreamToken,
-    enabled: !!authUser, // this will run only when authUser is available
+  const [messageText, setMessageText] = useState("");
+  const [messages, setMessages] = useState([]);
+  const messagesEndRef = useRef(null);
+
+  // Fetch Friends to display User Details in the Chat Header
+  const { data: friends = [], isLoading: isFriendsLoading } = useQuery({
+    queryKey: ["friends"],
+    queryFn: getUserFriends,
+    enabled: !!authUser,
   });
 
+  const otherUser = friends.find((f) => f._id === targetUserId);
+
+  // Fetch Message History
+  const { data: historyMessages = [], isLoading: isMessagesLoading } = useQuery({
+    queryKey: ["messages", targetUserId],
+    queryFn: () => getMessages(targetUserId),
+    enabled: !!authUser && !!targetUserId,
+  });
+
+  // Sync React Query history data to state
   useEffect(() => {
-    let active = true;
-    let client;
-    
-    const initChat = async () => {
-      // Wait until authUser is available and tokenData has either loaded or failed
-      if (!authUser || (!tokenData && !isTokenError)) return;
+    if (historyMessages) {
+      setMessages(historyMessages);
+    }
+  }, [historyMessages]);
 
-      // Handle query errors or empty token response gracefully
-      if (isTokenError || !tokenData?.token) {
-        if (active) {
-          console.error("Error or missing stream token:", tokenData);
-          setError(new Error("Could not retrieve active chat token. Please check your backend configuration."));
-          setLoading(false);
-        }
-        return;
-      }
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-      if (!targetUserId) {
-        if (active) {
-          setError(new Error("Target user ID is missing."));
-          setLoading(false);
-        }
-        return;
-      }
-
-      try {
-        console.log("Initializing stream chat client...");
-
-        client = StreamChat.getInstance(STREAM_API_KEY);
-
-        // Prevent redundant connections or reconnecting to a different user
-        if (client.userID !== authUser._id) {
-          if (client.userID) {
-            await client.disconnectUser();
-          }
-          await client.connectUser(
-            {
-              id: authUser._id,
-              name: authUser.fullName,
-              image: getAvatarUrl(authUser._id),
-            },
-            tokenData.token
-          );
-        }
-
-        const channelId = [authUser._id, targetUserId].sort().join("-");
-        const currChannel = client.channel("messaging", channelId, {
-          members: [authUser._id, targetUserId],
-        });
-
-        await currChannel.watch();
-
-        if (active) {
-          setChatClient(client);
-          setChannel(currChannel);
-        }
-      } catch (error) {
-        console.error("Error initializing chat:", error);
-        if (active) {
-          setError(error);
-          toast.error("Could not connect to chat. Please try again.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initChat();
-
-    return () => {
-      active = false;
-    };
-  }, [tokenData, isTokenError, authUser, targetUserId]);
-
-  // Handle socket message receipt and lifecycle cleanup (Flow 6)
+  // Handle Socket.io real-time message events
   useEffect(() => {
     const handleReceiveMessage = (data) => {
-      console.log("Real-time message received via socket:", data);
+      // Append only if it is from the active conversation partner
+      if (data.senderId === targetUserId) {
+        setMessages((prev) => [...prev, data]);
+      }
     };
 
     socket.on("receiveMessage", handleReceiveMessage);
     return () => {
       socket.off("receiveMessage", handleReceiveMessage);
     };
-  }, []);
+  }, [targetUserId]);
 
   const startCall = async (type) => {
-    if (!channel) return;
-    const otherMember = Object.values(channel.state.members).find(
-      (m) => m.user.id !== authUser._id
-    );
-    const otherUser = otherMember?.user;
     if (!otherUser) {
-      toast.error("User not found in channel");
+      toast.error("User details not found");
       return;
     }
 
     try {
       // Initiate WebRTC call via socket.io signaling
-      await initiateCall(targetUserId, otherUser.name, type);
+      await initiateCall(targetUserId, otherUser.fullName, type);
 
-      // Send chat invitation notification
-      await channel.sendMessage({
-        text: `📞 Started a ${type} call. Join here: ${window.location.origin}/call/${authUser._id}`,
-      });
+      const logText = `📞 Started a ${type} call. Join here.`;
+
+      // Save call invitation notification to chat history
+      await sendChatMessage(targetUserId, logText);
+
+      // Emit real-time message to let the other user see the log immediately
+      const newMsg = {
+        senderId: authUser._id,
+        receiverId: targetUserId,
+        text: logText,
+        createdAt: new Date().toISOString(),
+      };
+      socket.emit("sendMessage", newMsg);
+      setMessages((prev) => [...prev, newMsg]);
+
       navigate(`/call/${targetUserId}`);
     } catch (error) {
       console.error(error);
@@ -160,83 +98,163 @@ const ChatPage = () => {
     }
   };
 
-  const clearChat = async () => {
-    if(!channel) return;
-    if(window.confirm("Are you sure you want to clear this entire chat history?")) {
-      try {
-        await channel.truncate();
-        toast.success("Chat history cleared!");
-      } catch(err) {
-        toast.error("Could not clear chat.");
-      }
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!messageText.trim()) return;
+
+    const textToSend = messageText.trim();
+    setMessageText("");
+
+    try {
+      // 1. Persist to MongoDB database
+      const persistedMsg = await sendChatMessage(targetUserId, textToSend);
+
+      // 2. Emit to socket for real-time delivery
+      const socketMsg = {
+        _id: persistedMsg._id,
+        senderId: authUser._id,
+        receiverId: targetUserId,
+        text: textToSend,
+        createdAt: persistedMsg.createdAt || new Date().toISOString(),
+      };
+      socket.emit("sendMessage", socketMsg);
+
+      // 3. Update local UI state
+      setMessages((prev) => [...prev, socketMsg]);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      toast.error("Could not send message. Please try again.");
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-6 bg-base-100">
-        <p className="text-lg text-error font-medium">Could not connect to chat. Please check if server is running and try again.</p>
-        <button onClick={() => navigate("/")} className="btn btn-primary">Go back to Home</button>
-      </div>
-    );
+  const formatMessageTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (isFriendsLoading || isMessagesLoading || !authUser) {
+    return <ChatLoader />;
   }
 
-  if (loading || !chatClient || !channel) return <ChatLoader />;
-
   return (
-    <div className="w-full h-full flex flex-col">
-      <Chat client={chatClient}>
-        <Channel channel={channel}>
-          <div className="w-full relative flex flex-col h-full">
-            <Window>
-              <CustomChannelHeader channel={channel} authUser={authUser} onStartCall={startCall} onClearChat={clearChat} />
-              <MessageList />
-              <MessageComposer />
-            </Window>
-          </div>
-          <Thread />
-        </Channel>
-      </Chat>
-    </div>
-  );
-};
+    <div className="w-full h-full flex flex-col bg-base-100 overflow-hidden">
+      {/* 🟢 CUSTOM CHAT HEADER WITH BACK BUTTON */}
+      <div className="w-full flex items-center justify-between p-3 bg-base-200 border-b border-base-300 z-10 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Arrow Left Back button linking back to home */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="btn btn-sm btn-circle btn-ghost text-base-content hover:bg-base-300"
+            title="Go Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
 
-const CustomChannelHeader = ({ channel, authUser, onStartCall, onClearChat }) => {
-  const otherMember = Object.values(channel.state.members).find(
-    (m) => m.user.id !== authUser._id
-  );
-  const otherUser = otherMember?.user;
-
-  return (
-    <div className="w-full flex items-center justify-between p-3 bg-base-200 border-b border-base-300">
-      <div className="flex items-center gap-3 min-w-0">
-        {otherUser && (
-          <div className="avatar size-10 flex-shrink-0">
-            <div className="rounded-full overflow-hidden ring-2 ring-primary/20">
-              <img src={otherUser.image} alt={otherUser.name} className="object-cover w-full h-full" />
+          {otherUser ? (
+            <>
+              <div className="avatar size-10 flex-shrink-0">
+                <div className="rounded-full overflow-hidden ring-2 ring-primary/20">
+                  <img src={getAvatarUrl(otherUser._id)} alt={otherUser.fullName} className="object-cover w-full h-full" />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-base truncate leading-tight">{otherUser.fullName}</h2>
+                <div className="flex flex-wrap gap-1.5 mt-0.5 items-center">
+                  <span className="text-[10px] badge badge-outline p-1.5 opacity-80 flex items-center gap-0.5">
+                    {getLanguageFlag(otherUser.nativeLanguage)}
+                    Native: {otherUser.nativeLanguage}
+                  </span>
+                  <span className="text-[10px] badge badge-secondary p-1.5 opacity-80 flex items-center gap-0.5">
+                    {getLanguageFlag(otherUser.learningLanguage)}
+                    Learning: {otherUser.learningLanguage}
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div>
+              <h2 className="font-bold text-base">Conversation</h2>
+              <p className="text-xs opacity-65">Direct Message</p>
             </div>
-          </div>
-        )}
-        <div className="min-w-0">
-          <h2 className="font-bold text-base truncate">{otherUser?.name || "Conversation"}</h2>
-          <p className="text-xs text-success flex items-center gap-1">
-            <span className="size-1.5 rounded-full bg-success inline-block animate-pulse" />
-            Active
-          </p>
+          )}
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <button 
+            onClick={() => startCall("audio")} 
+            className="btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/20" 
+            title="Voice Call"
+            disabled={!otherUser}
+          >
+            <PhoneIcon className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => startCall("video")} 
+            className="btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/20" 
+            title="Video Call"
+            disabled={!otherUser}
+          >
+            <VideoIcon className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-        <button onClick={() => onStartCall('audio')} className="btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/20" title="Voice Call">
-          <PhoneIcon className="w-5 h-5" />
-        </button>
-        <button onClick={() => onStartCall('video')} className="btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/20" title="Video Call">
-          <VideoIcon className="w-5 h-5" />
-        </button>
-        <button onClick={onClearChat} className="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/20" title="Clear Chat">
-          <Trash2Icon className="w-5 h-5" />
-        </button>
+      {/* 💬 MESSAGE LIST CHAT BUBBLES AREA */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100/50">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full opacity-45 gap-2 text-center px-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <p className="text-sm font-semibold">No messages yet</p>
+            <p className="text-xs">Say hello to start the conversation!</p>
+          </div>
+        ) : (
+          messages.map((msg, index) => {
+            const isMe = msg.senderId === authUser._id;
+            return (
+              <div key={msg._id || index} className={`chat ${isMe ? "chat-end" : "chat-start"} animate-fade-in`}>
+                <div className="chat-image avatar">
+                  <div className="w-8 rounded-full border border-base-300">
+                    <img src={getAvatarUrl(isMe ? authUser._id : targetUserId)} alt="avatar" />
+                  </div>
+                </div>
+                
+                <div className={`chat-bubble shadow-md max-w-xs sm:max-w-md ${isMe ? "chat-bubble-primary text-primary-content" : "bg-base-200 text-base-content border border-base-300"}`}>
+                  <p className="text-sm break-words whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                </div>
+                
+                <div className="chat-footer opacity-50 text-[10px] mt-1">
+                  {formatMessageTime(msg.createdAt)}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
       </div>
+
+      {/* ✉️ CUSTOM MESSAGE INPUT COMPOSER */}
+      <form onSubmit={handleSendMessage} className="p-3 bg-base-200 border-t border-base-300 flex gap-2 shrink-0 items-center">
+        <input
+          type="text"
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          placeholder={otherUser ? `Message ${otherUser.fullName}...` : "Type a message..."}
+          className="input input-bordered flex-1 focus:outline-none focus:ring-1 focus:ring-primary rounded-full bg-base-100"
+          autoFocus
+        />
+        <button
+          type="submit"
+          disabled={!messageText.trim()}
+          className="btn btn-circle btn-primary shadow-md hover:scale-105 transition-transform"
+          title="Send Message"
+        >
+          <Send className="w-4 h-4 text-primary-content" />
+        </button>
+      </form>
     </div>
   );
 };

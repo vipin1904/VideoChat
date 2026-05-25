@@ -39,7 +39,7 @@ const ChatPage = () => {
 
   const { authUser } = useAuthUser();
 
-  const { data: tokenData } = useQuery({
+  const { data: tokenData, isError: isTokenError } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
     enabled: !!authUser, // this will run only when authUser is available
@@ -50,7 +50,26 @@ const ChatPage = () => {
     let client;
     
     const initChat = async () => {
-      if (!tokenData?.token || !authUser) return;
+      // Wait until authUser is available and tokenData has either loaded or failed
+      if (!authUser || (!tokenData && !isTokenError)) return;
+
+      // Handle query errors or empty token response gracefully
+      if (isTokenError || !tokenData?.token) {
+        if (active) {
+          console.error("Error or missing stream token:", tokenData);
+          setError(new Error("Could not retrieve active chat token. Please check your backend configuration."));
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!targetUserId) {
+        if (active) {
+          setError(new Error("Target user ID is missing."));
+          setLoading(false);
+        }
+        return;
+      }
 
       try {
         console.log("Initializing stream chat client...");
@@ -101,7 +120,7 @@ const ChatPage = () => {
     return () => {
       active = false;
     };
-  }, [tokenData, authUser, targetUserId]);
+  }, [tokenData, isTokenError, authUser, targetUserId]);
 
   // Handle socket message receipt and lifecycle cleanup (Flow 6)
   useEffect(() => {

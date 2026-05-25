@@ -194,7 +194,7 @@ const ChatPage = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  if (isFriendsLoading || isMessagesLoading || !authUser) {
+  if (!authUser) {
     return <ChatLoader />;
   }
 
@@ -233,6 +233,14 @@ const ChatPage = () => {
                 </div>
               </div>
             </>
+          ) : isFriendsLoading ? (
+            <div className="flex items-center gap-3 animate-pulse">
+              <div className="size-10 rounded-full bg-base-300"></div>
+              <div className="space-y-1.5">
+                <div className="h-4 w-28 bg-base-300 rounded"></div>
+                <div className="h-3 w-16 bg-base-300 rounded"></div>
+              </div>
+            </div>
           ) : (
             <div>
               <h2 className="font-bold text-base">Conversation</h2>
@@ -272,7 +280,12 @@ const ChatPage = () => {
 
       {/* 💬 MESSAGE LIST AREA */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100/50">
-        {messages.length === 0 ? (
+        {isMessagesLoading ? (
+          <div className="flex flex-col items-center justify-center h-full opacity-65 gap-2.5 text-center px-4">
+            <span className="loading loading-spinner loading-md text-primary"></span>
+            <p className="text-xs font-semibold uppercase tracking-wider animate-pulse">Loading messages...</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-45 gap-2 text-center px-4">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

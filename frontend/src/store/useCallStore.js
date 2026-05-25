@@ -105,31 +105,30 @@ export const useCallStore = create((set, get) => ({
     const userId = user._id;
     set({ currentUser: user });
 
-    if (!get().socket) {
-      if (!socket.connected) {
-        socket.connect();
-      }
-      socket.emit("register", userId);
-
-      // Re-register on reconnect
-      socket.on("connect", () => {
-        const u = get().currentUser;
-        if (u && u._id) {
-          console.log(`Socket reconnected. Registering: ${u._id}`);
-          socket.emit("register", u._id);
-        }
-      });
-
-      set({ socket });
-    } else {
-      if (socket.connected) {
-        socket.emit("register", userId);
-      }
+    // Establish connection if not already connected
+    if (!socket.connected) {
+      socket.connect();
     }
+
+    const registerUser = () => {
+      console.log(`Registering user socket: ${userId}`);
+      socket.emit("register", userId);
+    };
+
+    if (socket.connected) {
+      registerUser();
+    }
+
+    // Bind connect event cleanly to ensure we re-register upon connection/reconnection
+    socket.off("connect", registerUser); // prevent duplicates
+    socket.on("connect", registerUser);
+
+    set({ socket });
   },
 
   // Disconnect socket connection
   disconnectSocket: () => {
+    socket.off("connect");
     if (socket.connected) {
       socket.disconnect();
     }

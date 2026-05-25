@@ -81,8 +81,13 @@ export async function getMessages(targetUserId) {
   return response.data;
 }
 
-export async function sendChatMessage(targetUserId, text) {
-  const response = await axiosInstance.post(`/chat/messages/send/${targetUserId}`, { text });
+export async function sendChatMessage(targetUserId, text, file = "", fileType = "", fileName = "") {
+  const response = await axiosInstance.post(`/chat/messages/send/${targetUserId}`, { 
+    text, 
+    file, 
+    fileType, 
+    fileName 
+  });
   return response.data;
 }
 

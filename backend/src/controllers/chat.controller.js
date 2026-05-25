@@ -34,17 +34,23 @@ export async function getMessages(req, res) {
 export async function sendMessage(req, res) {
   try {
     const { id: receiverId } = req.params;
-    const { text } = req.body;
+    const { text, file, fileType, fileName } = req.body;
     const senderId = req.user._id;
 
-    if (!text || text.trim() === "") {
-      return res.status(400).json({ message: "Message content cannot be empty" });
+    const hasText = text && text.trim() !== "";
+    const hasFile = file && file.trim() !== "";
+
+    if (!hasText && !hasFile) {
+      return res.status(400).json({ message: "Message content or file is required" });
     }
 
     const newMessage = await Message.create({
       senderId,
       receiverId,
-      text: text.trim(),
+      text: text ? text.trim() : "",
+      file: file || "",
+      fileType: fileType || "",
+      fileName: fileName || "",
     });
 
     res.status(201).json(newMessage);

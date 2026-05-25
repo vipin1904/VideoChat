@@ -9,9 +9,12 @@ import {
   sendFriendRequest,
   updateProfile,
   withdrawFriendRequest,
+  getAvatar,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
+
+router.get("/:id/avatar", getAvatar);
 
 // apply auth middleware to all routes
 router.use(protectRoute);

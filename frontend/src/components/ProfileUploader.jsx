@@ -4,6 +4,7 @@ import { CameraIcon, Loader2, ImagePlusIcon, Wand2Icon, ShuffleIcon } from "luci
 import toast from "react-hot-toast";
 import { updateProfile } from "../lib/api";
 import { generateInitialsAvatar, generateRandomAvatar } from "../lib/avatarGenerator";
+import { getAvatarUrl } from "../lib/utils";
 
 const ProfileUploader = ({ authUser, sizeClass = "size-10" }) => {
   const fileInputRef = useRef(null);
@@ -60,7 +61,7 @@ const ProfileUploader = ({ authUser, sizeClass = "size-10" }) => {
     <div className="relative group cursor-pointer inline-block" onClick={() => !isUpdating && modalRef.current?.showModal()}>
       <div className={`avatar ${isUpdating ? "opacity-50" : ""}`}>
         <div className={`${sizeClass} rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 relative overflow-hidden`}>
-          <img src={authUser?.profilePic} alt="User Avatar" className="w-full h-full object-cover" />
+          <img src={getAvatarUrl(authUser?._id)} alt="User Avatar" className="w-full h-full object-cover" />
           
           {/* Upload Overlay - inside the rounded-full wrapper so it is clipped and aligned perfectly */}
           <div className={`absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${isUpdating ? "opacity-100" : ""}`}>

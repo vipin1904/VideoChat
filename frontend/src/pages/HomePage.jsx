@@ -21,7 +21,7 @@ import {
   RotateCcw
 } from "lucide-react";
 
-import { capitialize } from "../lib/utils";
+import { capitialize, getAvatarUrl } from "../lib/utils";
 import { LANGUAGES } from "../constants";
 
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
@@ -390,7 +390,7 @@ const HomePage = () => {
                         <div className="flex items-center gap-4">
                           <div className="avatar size-16">
                             <div className="size-16 rounded-full overflow-hidden ring-2 ring-primary/20 ring-offset-base-100 ring-offset-2 transition-all duration-300 group-hover:ring-primary">
-                              <img src={user.profilePic} alt={user.fullName} className="w-full h-full object-cover" />
+                              <img src={getAvatarUrl(user._id)} alt={user.fullName} className="w-full h-full object-cover" />
                             </div>
                           </div>
 

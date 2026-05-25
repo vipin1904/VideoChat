@@ -44,6 +44,7 @@ export async function getRecommendedUsers(req, res) {
     }
 
     const recommendedUsers = await User.find(query)
+      .select("-profilePic")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -65,7 +66,25 @@ export async function getMyFriends(req, res) {
   try {
     const user = await User.findById(req.user.id)
       .select("friends")
-      .populate("friends", "fullName profilePic nativeLanguage learningLanguage");
+      .populate("friends", "fullName nativeLanguage learningLanguage");
+
+    // Friends sync to Stream Chat to prevent "Member does not exist" errors
+    try {
+      const { upsertStreamUser, getBackendAvatarUrl } = await import("../lib/stream.js");
+      for (const friend of user.friends) {
+        try {
+          await upsertStreamUser({
+            id: friend._id.toString(),
+            name: friend.fullName,
+            image: getBackendAvatarUrl(friend._id),
+          });
+        } catch (err) {
+          console.error(`Error syncing friend ${friend.fullName} to stream:`, err.message);
+        }
+      }
+    } catch (importErr) {
+      console.error("Failed to import stream helpers:", importErr.message);
+    }
 
     res.status(200).json(user.friends);
   } catch (error) {
@@ -182,12 +201,12 @@ export async function getFriendRequests(req, res) {
     const incomingReqs = await FriendRequest.find({
       recipient: req.user.id,
       status: "pending",
-    }).populate("sender", "fullName profilePic nativeLanguage learningLanguage");
+    }).populate("sender", "fullName nativeLanguage learningLanguage");
 
     const acceptedReqs = await FriendRequest.find({
       sender: req.user.id,
       status: "accepted",
-    }).populate("recipient", "fullName profilePic");
+    }).populate("recipient", "fullName");
 
     res.status(200).json({ incomingReqs, acceptedReqs });
   } catch (error) {
@@ -201,7 +220,7 @@ export async function getOutgoingFriendReqs(req, res) {
     const outgoingRequests = await FriendRequest.find({
       sender: req.user.id,
       status: "pending",
-    }).populate("recipient", "fullName profilePic nativeLanguage learningLanguage");
+    }).populate("recipient", "fullName nativeLanguage learningLanguage");
 
     res.status(200).json(outgoingRequests);
   } catch (error) {
@@ -232,19 +251,56 @@ export async function updateProfile(req, res) {
 
     // Also update stream-chat user
     try {
-      const { upsertStreamUser } = await import("../lib/stream.js");
+      const { upsertStreamUser, getBackendAvatarUrl } = await import("../lib/stream.js");
       await upsertStreamUser({
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic,
+        image: getBackendAvatarUrl(updatedUser._id),
       });
     } catch (e) {
       console.log("Error updating stream profile:", e);
     }
 
-    res.status(200).json({ success: true, user: updatedUser });
+    const userResponse = updatedUser.toObject();
+    delete userResponse.profilePic;
+
+    res.status(200).json({ success: true, user: userResponse });
   } catch (error) {
     console.log("Error in updateProfile:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+export async function getAvatar(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select("profilePic fullName");
+    if (!user || !user.profilePic) {
+      const initials = user ? user.fullName.substring(0, 2).toUpperCase() : "U";
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" fill="#2c3e50"/><text x="50" y="50" dominant-baseline="central" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="600" fill="#ffffff">${initials}</text></svg>`.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
+      res.set("Content-Type", "image/svg+xml");
+      return res.send(svg);
+    }
+
+    const matches = user.profilePic.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (matches) {
+      const type = matches[1];
+      const buffer = Buffer.from(matches[2], 'base64');
+      res.set("Content-Type", type);
+      res.set("Cache-Control", "public, max-age=86400"); // cache for 1 day
+      return res.send(buffer);
+    }
+
+    if (user.profilePic.startsWith("http")) {
+      return res.redirect(user.profilePic);
+    }
+
+    const svgFallback = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" fill="#2c3e50"/><text x="50" y="50" dominant-baseline="central" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="600" fill="#ffffff">${user.fullName.substring(0, 2).toUpperCase()}</text></svg>`.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
+    res.set("Content-Type", "image/svg+xml");
+    return res.send(svgFallback);
+  } catch (error) {
+    console.error("Error in getAvatar:", error.message);
+    res.status(500).send("Error loading avatar");
+  }
+}
+

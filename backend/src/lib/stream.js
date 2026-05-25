@@ -28,3 +28,9 @@ export const generateStreamToken = (userId) => {
     console.error("Error generating Stream token:", error);
   }
 };
+
+export const getBackendAvatarUrl = (userId) => {
+  const base = process.env.NODE_ENV === "production" ? "" : "http://localhost:5001";
+  return `${base}/api/users/${userId}/avatar`;
+};
+

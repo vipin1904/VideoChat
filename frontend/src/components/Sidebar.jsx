@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, ScrollText, BrainCircuit } from "lucide-react";
 import InitialAvatar from "./InitialAvatar";
 
 const Sidebar = () => {
@@ -9,9 +9,11 @@ const Sidebar = () => {
   const p = location.pathname;
 
   const links = [
-    { to: "/",             label: "Home",          Icon: HomeIcon  },
-    { to: "/friends",      label: "Friends",        Icon: UsersIcon },
-    { to: "/notifications",label: "Notifications",  Icon: BellIcon  },
+    { to: "/",             label: "Home",          Icon: HomeIcon      },
+    { to: "/friends",      label: "Friends",        Icon: UsersIcon     },
+    { to: "/notifications",label: "Notifications",  Icon: BellIcon      },
+    { to: "/transcripts",  label: "Transcripts",    Icon: ScrollText    },
+    { to: "/summary",      label: "AI Summary",     Icon: BrainCircuit  },
   ];
 
   return (

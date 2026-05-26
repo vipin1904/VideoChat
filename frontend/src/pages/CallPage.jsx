@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken, getUserFriends } from "../lib/api";
+import { useSpeechToText } from "../hooks/useSpeechToText";
 
 import {
   StreamVideo,
@@ -193,13 +194,18 @@ const WACallUI = ({ audioOnly, callId }) => {
   const { status: screenShareStatus } = useScreenShareState();
   const isSharingScreen = screenShareStatus === "enabled";
 
-  const [micOn,      setMicOn]      = useState(true);
-  const [camOn,      setCamOn]      = useState(!audioOnly);
-  const [speakerOn,  setSpeakerOn]  = useState(true);
-  const [elapsed,    setElapsed]    = useState(0);
-  const [showInvite, setShowInvite] = useState(false);
+  const [micOn,           setMicOn]           = useState(true);
+  const [camOn,           setCamOn]           = useState(!audioOnly);
+  const [speakerOn,       setSpeakerOn]       = useState(true);
+  const [elapsed,         setElapsed]         = useState(0);
+  const [showInvite,      setShowInvite]      = useState(false);
+  const [showTranscript,  setShowTranscript]  = useState(false);
 
   const { recording, blobUrl, startRecording, stopRecording, downloadRecording } = useCallRecorder();
+
+  // ── Voice-to-text (browser SpeechRecognition, zero server cost) ──────────
+  const localName = useAuthUser().authUser?.fullName || "You";
+  const stt = useSpeechToText({ callId, participantName: localName });
 
   // Call timer
   useEffect(() => {
@@ -208,10 +214,21 @@ const WACallUI = ({ audioOnly, callId }) => {
     return () => clearInterval(t);
   }, [callingState]);
 
-  // Redirect when call ends
+  // Redirect when call ends — auto-save transcript first
   useEffect(() => {
-    if (callingState === CallingState.LEFT) navigate("/");
-  }, [callingState, navigate]);
+    if (callingState === CallingState.LEFT) {
+      if (stt.isListening) stt.stopListening();
+      if (stt.segments.length > 0) {
+        stt.persistTranscript(
+          remoteParticipants[0]
+            ? `Call with ${remoteParticipants[0].name}`
+            : "Video Call"
+        );
+      }
+      navigate("/");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callingState]);
 
   const fmt = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -242,8 +259,32 @@ const WACallUI = ({ audioOnly, callId }) => {
 
   const endCall = async () => {
     if (recording) stopRecording();
+    if (stt.isListening) stt.stopListening();
+    // Save transcript before leaving
+    if (stt.segments.length > 0) {
+      stt.persistTranscript(
+        remoteParticipants[0]
+          ? `Call with ${remoteParticipants[0].name}`
+          : "Video Call"
+      );
+    }
     try { await call.leave(); } catch (_) {}
     navigate("/");
+  };
+
+  // Summarize: save transcript + navigate to summary page
+  const handleSummarize = () => {
+    if (stt.isListening) stt.stopListening();
+    const saved = stt.persistTranscript(
+      remoteParticipants[0]
+        ? `Call with ${remoteParticipants[0].name}`
+        : "Video Call"
+    );
+    if (saved) {
+      navigate(`/summary?id=${saved.id}`);
+    } else {
+      toast.error("No transcript available. Enable voice transcription first.");
+    }
   };
 
   // Multi-participant grid layout
@@ -357,6 +398,13 @@ const WACallUI = ({ audioOnly, callId }) => {
                 <span className="text-white text-xs font-semibold">REC</span>
               </div>
             )}
+            {/* STT (voice transcription) indicator */}
+            {stt.isListening && (
+              <div className="flex items-center gap-1.5 bg-[#00a884]/80 px-2 py-1 rounded-full">
+                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                <span className="text-white text-xs font-semibold">LIVE</span>
+              </div>
+            )}
             {/* Download recorded video */}
             {blobUrl && (
               <button onClick={downloadRecording}
@@ -440,6 +488,47 @@ const WACallUI = ({ audioOnly, callId }) => {
           })()
         )}
 
+        {/* ── Live transcript overlay panel ── */}
+        {stt.isSupported && showTranscript && (
+          <div className="absolute bottom-40 sm:bottom-36 left-3 right-3 z-30
+                          max-h-44 rounded-2xl overflow-hidden
+                          bg-black/70 backdrop-blur-md border border-white/10 shadow-2xl
+                          flex flex-col">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="text-[#00a884] text-xs font-semibold">🎙 Live Transcript</span>
+                {stt.isListening && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00a884] animate-pulse" />
+                )}
+                <span className="text-white/30 text-[10px]">{stt.segments.length} segments</span>
+              </div>
+              <button
+                onClick={() => setShowTranscript(false)}
+                className="text-white/40 hover:text-white text-sm leading-none"
+              >✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-1.5">
+              {stt.segments.length === 0 && !stt.interimText && (
+                <p className="text-white/30 text-xs italic">
+                  {stt.isListening ? "Listening… start speaking" : "Start transcription to see text here"}
+                </p>
+              )}
+              {stt.segments.map((seg) => (
+                <div key={seg.id} className="flex gap-2">
+                  <span className="text-[#00a884] text-[10px] font-mono shrink-0 mt-0.5">{seg.timestamp}</span>
+                  <span className="text-white/80 text-xs leading-relaxed">{seg.text}</span>
+                </div>
+              ))}
+              {stt.interimText && (
+                <div className="flex gap-2">
+                  <span className="text-[#00a884] text-[10px] font-mono shrink-0 mt-0.5">…</span>
+                  <span className="text-white/40 text-xs italic leading-relaxed">{stt.interimText}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Control bar (bottom) ── */}
         <div className="relative z-10 mt-auto px-3 pb-8 sm:pb-6 pt-6"
           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }}>
@@ -518,6 +607,43 @@ const WACallUI = ({ audioOnly, callId }) => {
                 </svg>
               )}
             </button>
+            {/* Voice Transcript toggle */}
+            {stt.isSupported ? (
+              <button
+                onClick={() => {
+                  if (stt.isListening) {
+                    stt.stopListening();
+                  } else {
+                    stt.startListening();
+                    setShowTranscript(true);
+                  }
+                }}
+                title={stt.isListening ? "Stop voice transcription" : "Start voice transcription"}
+                className={`wa-ctrl-btn ${
+                  stt.isListening
+                    ? "bg-[#00a884] hover:bg-[#008069] ring-2 ring-[#00a884]/40"
+                    : "bg-white/20 hover:bg-white/30"
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-5 h-5">
+                  <rect x="9" y="2" width="6" height="11" rx="3" />
+                  <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8" />
+                </svg>
+              </button>
+            ) : (
+              <div className="wa-ctrl-btn opacity-0 pointer-events-none" />
+            )}
+
+            {/* AI Summarize */}
+            <button
+              onClick={handleSummarize}
+              title="Save & Summarize transcript with AI"
+              className="wa-ctrl-btn bg-violet-600 hover:bg-violet-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-5 h-5">
+                <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+              </svg>
+            </button>
           </div>
 
           {/* Labels */}
@@ -528,7 +654,9 @@ const WACallUI = ({ audioOnly, callId }) => {
               "Invite",
               "",
               !audioOnly ? "Share" : "",
-              "Record"
+              "Record",
+              stt.isSupported ? "Transcript" : "",
+              "AI Recap",
             ].map((label, i) => (
               <span key={i}
                 className={`text-white/60 text-[10px] w-14 text-center ${i === 3 ? "w-16" : ""}`}>

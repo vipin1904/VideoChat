@@ -9,6 +9,8 @@ const CallPage          = React.lazy(() => import("./pages/CallPage.jsx"));
 const ChatPage          = React.lazy(() => import("./pages/ChatPage.jsx"));
 const OnboardingPage    = React.lazy(() => import("./pages/OnboardingPage.jsx"));
 const FriendsPage       = React.lazy(() => import("./pages/FriendsPage.jsx"));
+const TranscriptPage    = React.lazy(() => import("./pages/TranscriptPage.jsx"));
+const SummaryPage       = React.lazy(() => import("./pages/SummaryPage.jsx"));
 
 import { Toaster } from "react-hot-toast";
 import PageLoader from "./components/PageLoader.jsx";
@@ -63,6 +65,20 @@ const App = () => {
           {/* ── Video / Audio Call (full screen, no layout wrapper) ── */}
           <Route path="/call/:id" element={
             isAuthenticated && isOnboarded ? <CallPage /> : authRedirect
+          } />
+
+          {/* ── Transcripts ── */}
+          <Route path="/transcripts" element={
+            isAuthenticated && isOnboarded
+              ? <Layout showSidebar={true}><TranscriptPage /></Layout>
+              : authRedirect
+          } />
+
+          {/* ── AI Summary ── */}
+          <Route path="/summary" element={
+            isAuthenticated && isOnboarded
+              ? <Layout showSidebar={true}><SummaryPage /></Layout>
+              : authRedirect
           } />
 
           {/* ── Auth ── */}

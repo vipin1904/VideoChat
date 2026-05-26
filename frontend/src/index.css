@@ -3,16 +3,28 @@
 @tailwind utilities;
 
 /* ─── Global base resets ─────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; overflow-x: hidden; width: 100%; }
+
+/* WhatsApp call — circular icon buttons */
+.wa-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+.wa-ctrl-btn:active { transform: scale(0.92); }
+
+@media (min-width: 640px) {
+  .wa-ctrl-btn { width: 64px; height: 64px; }
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  width: 100%;
-}
 
 /* ─── Default stream overrides (non‑chat pages) ─────────── */
 .str-chat__channel {

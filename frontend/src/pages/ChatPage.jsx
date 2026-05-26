@@ -237,7 +237,7 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="whatsapp-chat-container flex h-[93vh] w-full bg-[#0b141a]">
+    <div className="whatsapp-chat-container flex h-[calc(100vh-64px)] w-full bg-base-100">
       <Chat client={chatClient}>
         <Channel channel={channel}>
           <div className="flex flex-col flex-1 h-full relative overflow-hidden">

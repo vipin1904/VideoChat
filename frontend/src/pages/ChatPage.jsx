@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
@@ -180,12 +180,35 @@ const ChatPage = () => {
     }
   };
 
+  // ── Mobile keyboard: shrink chat to visual viewport ──────────────
+  const chatRef = useRef(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      if (chatRef.current) {
+        // navbar is 64px; use the visual viewport height so keyboard is accounted for
+        chatRef.current.style.height = `${vv.height - 64}px`;
+      }
+    };
+    onResize();
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
+  }, []);
+
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    /* Full viewport minus the top navbar (64 px) */
-    <div className="whatsapp-chat-container flex flex-col w-full bg-[#efeae2]"
-      style={{ height: "calc(100vh - 64px)" }}>
+    /* Full viewport minus the top navbar — shrinks when mobile keyboard opens */
+    <div
+      ref={chatRef}
+      className="whatsapp-chat-container flex flex-col w-full bg-[#efeae2]"
+      style={{ height: "calc(100dvh - 64px)" }}
+    >
 
       {/* Fixed custom header — always visible */}
       <ChatHeader

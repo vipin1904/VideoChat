@@ -21,9 +21,37 @@ html, body { margin: 0; padding: 0; overflow-x: hidden; width: 100%; }
 }
 .wa-ctrl-btn:active { transform: scale(0.92); }
 
+.wa-ctrl-btn-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
 @media (min-width: 640px) {
   .wa-ctrl-btn { width: 64px; height: 64px; }
 }
+
+/* ── Mobile keyboard: make sure message input is always visible ─── */
+/* Use interactive-widget to resize only the visual viewport          */
+@supports (height: 100dvh) {
+  html {
+    height: 100dvh;
+  }
+}
+
+/* Prevent body from scrolling behind the keyboard on iOS            */
+body {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
 
 
 /* ─── Default stream overrides (non‑chat pages) ─────────── */

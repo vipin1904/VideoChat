@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
+import InitialAvatar from "../components/InitialAvatar";
 
 import {
   Channel,
@@ -38,12 +39,13 @@ const ChatHeader = ({ targetUser, onVideoCall, onAudioCall, onClearChat }) => {
         </svg>
       </button>
 
-      {/* Avatar + status */}
+      {/* Avatar + status — shows initials if no photo (WhatsApp style) */}
       <div className="relative shrink-0">
-        <img
-          src={targetUser?.image || "https://avatar.iran.liara.run/public"}
-          alt={targetUser?.name || "User"}
-          className="w-10 h-10 rounded-full object-cover border border-[#e9edef]"
+        <InitialAvatar
+          src={targetUser?.image}
+          name={targetUser?.name || targetUser?.fullName || ""}
+          size="10"
+          className="border border-[#e9edef]"
         />
         {targetUser?.online && (
           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#00a884] border-2 border-[#f0f2f5] rounded-full" />

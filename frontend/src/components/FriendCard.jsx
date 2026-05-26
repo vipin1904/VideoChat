@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { LANGUAGE_TO_FLAG } from "../constants";
+import InitialAvatar from "./InitialAvatar";
 
 const FriendCard = ({ friend }) => {
   return (
@@ -8,10 +9,13 @@ const FriendCard = ({ friend }) => {
 
         {/* Avatar + Name */}
         <div className="flex items-center gap-3">
-          <div className="avatar shrink-0">
-            <div className="w-12 rounded-full">
-              <img src={friend.profilePic} alt={friend.fullName} />
-            </div>
+        {/* Avatar — colored initials if no photo, just like WhatsApp */}
+          <div className="shrink-0">
+            <InitialAvatar
+              src={friend.profilePic}
+              name={friend.fullName}
+              size="12"
+            />
           </div>
           <div className="min-w-0">
             <h3 className="font-semibold truncate text-base leading-tight">

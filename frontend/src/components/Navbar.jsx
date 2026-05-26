@@ -3,6 +3,7 @@ import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, LogOutIcon, ShipWheelIcon } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
+import InitialAvatar from "./InitialAvatar";
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -42,11 +43,13 @@ const Navbar = () => {
             {/* Theme toggle */}
             <ThemeSelector />
 
-            {/* Avatar */}
-            <div className="avatar shrink-0">
-              <div className="w-8 sm:w-9 rounded-full">
-                <img src={authUser?.profilePic} alt="User Avatar" />
-              </div>
+            {/* Avatar — shows initials if no profile pic */}
+            <div className="shrink-0">
+              <InitialAvatar
+                src={authUser?.profilePic}
+                name={authUser?.fullName || ""}
+                size="9"
+              />
             </div>
 
             {/* Logout */}

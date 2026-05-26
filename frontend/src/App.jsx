@@ -1,12 +1,13 @@
+import React, { Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
 
-import HomePage from "./pages/HomePage.jsx";
-import SignUpPage from "./pages/SignUpPage.jsx";
-import LoginPage from "./pages/LoginPage.jsx";
-import NotificationsPage from "./pages/NotificationsPage.jsx";
-import CallPage from "./pages/CallPage.jsx";
-import ChatPage from "./pages/ChatPage.jsx";
-import OnboardingPage from "./pages/OnboardingPage.jsx";
+const HomePage = React.lazy(() => import("./pages/HomePage.jsx"));
+const SignUpPage = React.lazy(() => import("./pages/SignUpPage.jsx"));
+const LoginPage = React.lazy(() => import("./pages/LoginPage.jsx"));
+const NotificationsPage = React.lazy(() => import("./pages/NotificationsPage.jsx"));
+const CallPage = React.lazy(() => import("./pages/CallPage.jsx"));
+const ChatPage = React.lazy(() => import("./pages/ChatPage.jsx"));
+const OnboardingPage = React.lazy(() => import("./pages/OnboardingPage.jsx"));
 
 import { Toaster } from "react-hot-toast";
 
@@ -26,8 +27,9 @@ const App = () => {
 
   return (
     <div className="h-screen" data-theme={theme}>
-      <Routes>
-        <Route
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route
           path="/"
           element={
             isAuthenticated && isOnboarded ? (
@@ -102,6 +104,7 @@ const App = () => {
           }
         />
       </Routes>
+      </Suspense>
 
       <Toaster />
     </div>

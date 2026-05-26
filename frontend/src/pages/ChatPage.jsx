@@ -95,10 +95,10 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[93vh]">
+    <div className="flex h-[93vh] w-full bg-base-100">
       <Chat client={chatClient}>
         <Channel channel={channel}>
-          <div className="w-full relative">
+          <div className="flex flex-col flex-1 h-full relative pt-16">
             <CallButton handleVideoCall={handleVideoCall} />
             <Window>
               <ChannelHeader />

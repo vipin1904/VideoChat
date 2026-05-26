@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useParams, Link } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
@@ -22,22 +22,39 @@ import CallButton from "../components/CallButton";
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 // Custom WhatsApp Web Header Component
-const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
+const WhatsAppHeader = ({ targetUser, handleVideoCall, handleAudioCall, onClearChat }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-base-300 text-base-content border-b border-base-content/10 h-[60px] w-full z-10 select-none">
-      {/* Left: Avatar + Details */}
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between px-4 py-3 bg-[#f0f2f5] text-[#111b21] border-b border-[#e9edef] h-[60px] w-full z-10 select-none">
+      {/* Left: Back Link + Avatar + Details */}
+      <div className="flex items-center gap-2">
+        <Link
+          to="/"
+          className="text-[#54656f] hover:text-[#111b21] transition-colors p-1.5 rounded-full hover:bg-black/5 flex items-center justify-center"
+          title="Back to Chats"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            stroke="currentColor"
+            className="w-5.5 h-5.5"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
+        </Link>
+
         <div className="relative">
           <img
             src={targetUser?.image || "https://avatar.iran.liara.run/public"}
             alt={targetUser?.name || "User"}
-            className="w-10 h-10 rounded-full object-cover border border-base-content/10"
+            className="w-10 h-10 rounded-full object-cover border border-[#e9edef]"
           />
           
           {/* Clock icon overlay at bottom-right corner of avatar exactly as in user's screenshot */}
-          <div className="absolute -bottom-1 -right-1 bg-base-300 p-0.5 rounded-full border border-base-content/10 text-base-content/60" title="Disappearing messages enabled">
+          <div className="absolute -bottom-1 -right-1 bg-[#f0f2f5] p-0.5 rounded-full border border-[#e9edef] text-[#54656f]" title="Disappearing messages enabled">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -51,25 +68,41 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
           </div>
 
           {targetUser?.online && (
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#00a884] border-2 border-base-300 rounded-full z-10"></span>
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#00a884] border-2 border-[#f0f2f5] rounded-full z-10"></span>
           )}
         </div>
         <div>
-          <h2 className="font-semibold text-sm leading-tight text-base-content">
+          <h2 className="font-semibold text-sm leading-tight text-[#111b21]">
             {targetUser?.name || targetUser?.fullName || "Chat Partner"}
           </h2>
-          <p className="text-xs text-base-content/60 mt-0.5">
+          <p className="text-xs text-[#54656f] mt-0.5 font-medium">
             {targetUser?.online ? "online" : "offline"}
           </p>
         </div>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-4 text-base-content/70">
+      <div className="flex items-center gap-2 text-[#54656f]">
+        {/* Audio Call */}
+        <button
+          onClick={handleAudioCall}
+          className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5"
+          title="Start voice call"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="w-5 h-5"
+          >
+            <path fillRule="evenodd" d="M1.5 4.5a3 3 0 0 1 3-3h1.372c.86 0 1.61.586 1.819 1.42l.547 2.19c.204.814-.006 1.693-.57 2.258L6.22 8.784a16.533 16.533 0 0 0 7.228 7.228l1.416-1.417c.565-.565 1.444-.775 2.259-.57l2.19.547a1.91 1.91 0 0 1 1.42 1.82V19.5a3 3 0 0 1-3 3h-2.25C6.71 22.5 1.5 17.29 1.5 10.75V4.5Z" clipRule="evenodd" />
+          </svg>
+        </button>
+
         {/* Video Call */}
         <button
           onClick={handleVideoCall}
-          className="hover:text-base-content transition-colors p-2 rounded-full hover:bg-base-content/10"
+          className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5"
           title="Start video call"
         >
           <svg
@@ -83,7 +116,7 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
         </button>
 
         {/* Search */}
-        <button className="hover:text-base-content transition-colors p-2 rounded-full hover:bg-base-content/10" title="Search messages">
+        <button className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5" title="Search messages">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -100,7 +133,7 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="hover:text-base-content transition-colors p-2 rounded-full hover:bg-base-content/10"
+            className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5"
             title="Menu"
           >
             <svg
@@ -118,15 +151,15 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)}></div>
-              <div className="absolute right-0 mt-2 w-48 bg-base-200 rounded-md shadow-lg border border-base-content/10 py-1 z-30">
+              <div className="absolute right-0 mt-2 w-48 bg-[#ffffff] rounded-md shadow-lg border border-[#e9edef] py-1 z-30">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
                     onClearChat();
                   }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-error hover:bg-base-300 transition-colors flex items-center gap-2 font-medium"
+                  className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-red-500">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                   </svg>
                   Clear Chat
@@ -219,6 +252,18 @@ const ChatPage = () => {
     }
   };
 
+  const handleAudioCall = () => {
+    if (channel) {
+      const callUrl = `${window.location.origin}/call/${channel.id}?audioOnly=true`;
+
+      channel.sendMessage({
+        text: `I've started an audio call. Join me here: ${callUrl}`,
+      });
+
+      toast.success("Voice call link sent successfully!");
+    }
+  };
+
   const handleClearChat = async () => {
     if (!channel) return;
     const confirmClear = window.confirm("Are you sure you want to clear all messages in this chat?");
@@ -244,6 +289,7 @@ const ChatPage = () => {
             <WhatsAppHeader
               targetUser={targetUser}
               handleVideoCall={handleVideoCall}
+              handleAudioCall={handleAudioCall}
               onClearChat={handleClearChat}
             />
             <Window>

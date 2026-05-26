@@ -165,3 +165,14 @@
   font-weight: 500 !important;
 }
 
+/* Ensure the Window component inside whatsapp-chat-container is a column flexbox and doesn't overlap children */
+.whatsapp-chat-container .str-chat__window,
+.whatsapp-chat-container .str-chat__main-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: relative !important;
+  background: #efeae2 !important;
+}
+

@@ -246,13 +246,13 @@ const ChatPage = () => {
       <Chat client={chatClient}>
         <Channel channel={channel}>
           <div className="flex flex-col flex-1 h-full relative overflow-hidden">
-            <WhatsAppHeader
-              targetUser={targetUser}
-              handleVideoCall={handleVideoCall}
-              handleAudioCall={handleAudioCall}
-              onClearChat={handleClearChat}
-            />
             <Window>
+              <WhatsAppHeader
+                targetUser={targetUser}
+                handleVideoCall={handleVideoCall}
+                handleAudioCall={handleAudioCall}
+                onClearChat={handleClearChat}
+              />
               <div className="whatsapp-info-banner select-none">
                 🔒 Messages are end-to-end encrypted. No one outside of this chat can read them.
               </div>

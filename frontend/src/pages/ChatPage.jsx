@@ -82,92 +82,52 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, handleAudioCall, onClearC
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2 text-[#54656f]">
+      <div className="flex items-center gap-2">
         {/* Audio Call */}
         <button
           onClick={handleAudioCall}
-          className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5"
+          className="text-[#00a884] hover:text-[#008069] transition-all p-2 rounded-full hover:bg-black/5 flex items-center justify-center gap-1.5 font-semibold text-xs bg-[#00a884]/10 hover:bg-[#00a884]/20 px-2.5 py-1.5"
           title="Start voice call"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="w-5 h-5"
+            className="w-4 h-4"
           >
             <path fillRule="evenodd" d="M1.5 4.5a3 3 0 0 1 3-3h1.372c.86 0 1.61.586 1.819 1.42l.547 2.19c.204.814-.006 1.693-.57 2.258L6.22 8.784a16.533 16.533 0 0 0 7.228 7.228l1.416-1.417c.565-.565 1.444-.775 2.259-.57l2.19.547a1.91 1.91 0 0 1 1.42 1.82V19.5a3 3 0 0 1-3 3h-2.25C6.71 22.5 1.5 17.29 1.5 10.75V4.5Z" clipRule="evenodd" />
           </svg>
+          <span className="hidden md:inline">Voice Call</span>
         </button>
 
         {/* Video Call */}
         <button
           onClick={handleVideoCall}
-          className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5"
+          className="text-[#3b82f6] hover:text-[#1d4ed8] transition-all p-2 rounded-full hover:bg-black/5 flex items-center justify-center gap-1.5 font-semibold text-xs bg-[#3b82f6]/10 hover:bg-[#3b82f6]/20 px-2.5 py-1.5"
           title="Start video call"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="w-5.5 h-5.5"
+            className="w-4 h-4"
           >
             <path d="M4.5 4.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h8.25a3 3 0 0 0 3-3V13.5l4.5 4.5V6l-4.5 4.5V7.5a3 3 0 0 0-3-3H4.5Z" />
           </svg>
+          <span className="hidden md:inline">Video Call</span>
         </button>
 
-        {/* Search */}
-        <button className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5" title="Search messages">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2.5}
-            stroke="currentColor"
-            className="w-5 h-5"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.602 10.602Z" />
+        {/* Clear Chat */}
+        <button
+          onClick={onClearChat}
+          className="text-red-500 hover:text-red-700 transition-all p-2 rounded-full hover:bg-black/5 flex items-center justify-center gap-1.5 font-semibold text-xs bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1.5"
+          title="Clear Chat"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
           </svg>
+          <span className="hidden md:inline">Clear Chat</span>
         </button>
-
-        {/* Dropdown Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="hover:text-[#111b21] transition-colors p-2 rounded-full hover:bg-black/5"
-            title="Menu"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2.5}
-              stroke="currentColor"
-              className="w-5 h-5"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
-            </svg>
-          </button>
-
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)}></div>
-              <div className="absolute right-0 mt-2 w-48 bg-[#ffffff] rounded-md shadow-lg border border-[#e9edef] py-1 z-30">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onClearChat();
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-red-500">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-                  Clear Chat
-                </button>
-              </div>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );

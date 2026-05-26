@@ -13,6 +13,7 @@ import {
   useCallStateHooks,
   useCall,
   ParticipantView,
+  hasScreenShare,
 } from "@stream-io/video-react-sdk";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
@@ -182,13 +183,15 @@ function useCallRecorder() {
    Main WhatsApp-style call UI
    ════════════════════════════════════════════════ */
 const WACallUI = ({ audioOnly, callId }) => {
-  const { useCallCallingState, useLocalParticipant, useRemoteParticipants } = useCallStateHooks();
+  const { useCallCallingState, useLocalParticipant, useRemoteParticipants, useScreenShareState } = useCallStateHooks();
   const callingState    = useCallCallingState();
   const call            = useCall();
   const navigate        = useNavigate();
 
   const localParticipant   = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
+  const { status: screenShareStatus } = useScreenShareState();
+  const isSharingScreen = screenShareStatus === "enabled";
 
   const [micOn,      setMicOn]      = useState(true);
   const [camOn,      setCamOn]      = useState(!audioOnly);
@@ -228,6 +231,15 @@ const WACallUI = ({ audioOnly, callId }) => {
     } catch (_) {}
   };
 
+  const toggleScreenShare = async () => {
+    if (audioOnly) return;
+    try {
+      await call.screenShare.toggle();
+    } catch (err) {
+      toast.error("Screen sharing failed or cancelled");
+    }
+  };
+
   const endCall = async () => {
     if (recording) stopRecording();
     try { await call.leave(); } catch (_) {}
@@ -236,6 +248,11 @@ const WACallUI = ({ audioOnly, callId }) => {
 
   // Multi-participant grid layout
   const hasMultiple = remoteParticipants.length > 1;
+
+  // Active Screen Share Participant Detection
+  const remoteScreenShareParticipant = remoteParticipants.find(p => hasScreenShare(p));
+  const isLocalScreenSharing = localParticipant ? hasScreenShare(localParticipant) : false;
+  const activeScreenShareParticipant = remoteScreenShareParticipant || (isLocalScreenSharing ? localParticipant : null);
 
   return (
     <StreamTheme>
@@ -252,6 +269,24 @@ const WACallUI = ({ audioOnly, callId }) => {
               <p className="text-white text-lg font-semibold">Waiting for others…</p>
               <p className="text-white/50 text-sm">Share the call link to invite people</p>
             </div>
+          ) : activeScreenShareParticipant ? (
+            /* Screen share view (highest priority) */
+            <div className="w-full h-full bg-black relative">
+              <ParticipantView
+                participant={activeScreenShareParticipant}
+                trackType="screenShareTrack"
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute bottom-2 left-2 bg-black/60 rounded px-2.5 py-1 text-white text-xs font-semibold flex items-center gap-1.5 shadow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#00a884" className="w-4 h-4">
+                  <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                  <path fillRule="evenodd" d="M1.353 21.018a1.5 1.5 0 0 1-.33-1.637C2.261 16.22 5.65 14 9.75 14h4.5c4.1 0 7.489 2.221 8.727 5.381.258.658-.02 1.4-.633 1.637A23.957 23.957 0 0 1 12 22.5c-3.755 0-7.305-.86-10.647-1.482ZM9.75 15.5h4.5a8.23 8.23 0 0 1 5.378 1.986 22.483 22.483 0 0 0-10.756 0 8.23 8.23 0 0 1 5.378-1.986Z" clipRule="evenodd" />
+                </svg>
+                {activeScreenShareParticipant.sessionId === localParticipant?.sessionId
+                  ? "You are sharing your screen"
+                  : `${activeScreenShareParticipant.name} is sharing screen`}
+              </div>
+            </div>
           ) : hasMultiple ? (
             /* Grid for group calls */
             <div className={`w-full h-full grid gap-1 ${
@@ -260,7 +295,11 @@ const WACallUI = ({ audioOnly, callId }) => {
             }`}>
               {remoteParticipants.map((p) => (
                 <div key={p.sessionId} className="relative overflow-hidden bg-[#1a2536]">
-                  <ParticipantView participant={p} className="w-full h-full object-cover" />
+                  <ParticipantView
+                    participant={p}
+                    trackType={hasScreenShare(p) ? "screenShareTrack" : "videoTrack"}
+                    className="w-full h-full object-cover"
+                  />
                   <div className="absolute bottom-2 left-2 bg-black/50 rounded px-2 py-0.5">
                     <span className="text-white text-xs font-medium">{p.name}</span>
                   </div>
@@ -271,6 +310,7 @@ const WACallUI = ({ audioOnly, callId }) => {
             /* Single remote — full screen */
             <ParticipantView
               participant={remoteParticipants[0]}
+              trackType={hasScreenShare(remoteParticipants[0]) ? "screenShareTrack" : "videoTrack"}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -339,26 +379,65 @@ const WACallUI = ({ audioOnly, callId }) => {
           </div>
         </div>
 
-        {/* ── Self PIP ── */}
-        {!audioOnly && localParticipant && (
-          <div className="absolute top-16 sm:top-20 right-3 sm:right-4 z-20
-                          w-24 h-36 sm:w-32 sm:h-48
-                          rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl">
-            <ParticipantView
-              participant={localParticipant}
-              className="w-full h-full object-cover"
-              style={{ transform: "scaleX(-1)" }}
-            />
-            {!camOn && (
-              <div className="absolute inset-0 bg-[#1a2536] flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                  strokeWidth={1.5} stroke="white" className="w-8 h-8 opacity-40">
-                  <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-                </svg>
+        {/* ── Dynamic PIP ── */}
+        {!audioOnly && (
+          (() => {
+            let pipParticipant = null;
+            let showPip = false;
+            let mirror = false;
+            let showCamOffPlaceholder = false;
+
+            if (activeScreenShareParticipant) {
+              if (isLocalScreenSharing) {
+                pipParticipant = remoteParticipants[0];
+                showPip = !!pipParticipant;
+                showCamOffPlaceholder = pipParticipant && !pipParticipant.videoEnabled;
+              } else {
+                pipParticipant = localParticipant;
+                showPip = !!pipParticipant;
+                mirror = true;
+                showCamOffPlaceholder = !camOn;
+              }
+            } else {
+              if (!hasMultiple) {
+                pipParticipant = localParticipant;
+                showPip = !!pipParticipant;
+                mirror = true;
+                showCamOffPlaceholder = !camOn;
+              }
+            }
+
+            if (!showPip || !pipParticipant) return null;
+
+            return (
+              <div className="absolute top-16 sm:top-20 right-3 sm:right-4 z-20
+                              w-24 h-36 sm:w-32 sm:h-48
+                              rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl">
+                <ParticipantView
+                  participant={pipParticipant}
+                  trackType="videoTrack"
+                  className="w-full h-full object-cover"
+                  style={mirror ? { transform: "scaleX(-1)" } : undefined}
+                />
+                {showCamOffPlaceholder && (
+                  <div className="absolute inset-0 bg-[#1a2536] flex items-center justify-center">
+                    {mirror ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                        strokeWidth={1.5} stroke="white" className="w-8 h-8 opacity-40">
+                        <path strokeLinecap="round" strokeLinejoin="round"
+                          d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-base font-bold"
+                           style={{ backgroundColor: colorFromName(pipParticipant.name || "") }}>
+                        {pipParticipant.name?.[0]?.toUpperCase() || "?"}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()
         )}
 
         {/* ── Control bar (bottom) ── */}
@@ -378,6 +457,19 @@ const WACallUI = ({ audioOnly, callId }) => {
               </svg>
             </button>
 
+            {/* Camera toggle */}
+            {!audioOnly ? (
+              <button onClick={toggleCam} title={camOn ? "Turn off camera" : "Turn on camera"}
+                className={`wa-ctrl-btn ${camOn ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-6 h-6">
+                  <path d="M4.5 4.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h8.25a3 3 0 0 0 3-3V13.5l4.5 4.5V6l-4.5 4.5V7.5a3 3 0 0 0-3-3H4.5Z" />
+                  {!camOn && <line x1="2" y1="2" x2="22" y2="22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>}
+                </svg>
+              </button>
+            ) : (
+              <div className="wa-ctrl-btn opacity-0 pointer-events-none" />
+            )}
+
             {/* Invite */}
             <button onClick={() => setShowInvite(true)} title="Add people"
               className="wa-ctrl-btn bg-white/20 hover:bg-white/30">
@@ -393,6 +485,20 @@ const WACallUI = ({ audioOnly, callId }) => {
                 <path fillRule="evenodd" d="M1.5 4.5a3 3 0 0 1 3-3h1.372c.86 0 1.61.586 1.819 1.42l.547 2.19c.204.814-.006 1.693-.57 2.258L6.22 8.784a16.533 16.533 0 0 0 7.228 7.228l1.416-1.417c.565-.565 1.444-.775 2.259-.57l2.19.547a1.91 1.91 0 0 1 1.42 1.82V19.5a3 3 0 0 1-3 3h-2.25C6.71 22.5 1.5 17.29 1.5 10.75V4.5Z" clipRule="evenodd" />
               </svg>
             </button>
+
+            {/* Screen Share */}
+            {!audioOnly ? (
+              <button onClick={toggleScreenShare} title={isSharingScreen ? "Stop sharing screen" : "Share screen"}
+                className={`wa-ctrl-btn ${isSharingScreen ? "bg-[#00a884] hover:bg-[#008069]" : "bg-white/20 hover:bg-white/30"}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-6 h-6">
+                  <rect x="2" y="3" width="20" height="13" rx="2" />
+                  <path d="M12 16v4M8 20h8" />
+                  <path d="m10 9 2-2 2 2M12 7v5" />
+                </svg>
+              </button>
+            ) : (
+              <div className="wa-ctrl-btn opacity-0 pointer-events-none" />
+            )}
 
             {/* Record */}
             <button
@@ -412,26 +518,20 @@ const WACallUI = ({ audioOnly, callId }) => {
                 </svg>
               )}
             </button>
-
-            {/* Camera toggle */}
-            {!audioOnly ? (
-              <button onClick={toggleCam} title={camOn ? "Turn off camera" : "Turn on camera"}
-                className={`wa-ctrl-btn ${camOn ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-6 h-6">
-                  <path d="M4.5 4.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h8.25a3 3 0 0 0 3-3V13.5l4.5 4.5V6l-4.5 4.5V7.5a3 3 0 0 0-3-3H4.5Z" />
-                  {!camOn && <line x1="2" y1="2" x2="22" y2="22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>}
-                </svg>
-              </button>
-            ) : (
-              <div className="wa-ctrl-btn opacity-0 pointer-events-none" />
-            )}
           </div>
 
           {/* Labels */}
           <div className="flex items-center justify-center gap-4 sm:gap-6 mt-1.5">
-            {["Mute", "Invite", "", "Record", !audioOnly ? "Camera" : ""].map((label, i) => (
+            {[
+              "Mute",
+              !audioOnly ? "Camera" : "",
+              "Invite",
+              "",
+              !audioOnly ? "Share" : "",
+              "Record"
+            ].map((label, i) => (
               <span key={i}
-                className={`text-white/60 text-[10px] w-14 text-center ${i === 2 ? "w-16" : ""}`}>
+                className={`text-white/60 text-[10px] w-14 text-center ${i === 3 ? "w-16" : ""}`}>
                 {label}
               </span>
             ))}

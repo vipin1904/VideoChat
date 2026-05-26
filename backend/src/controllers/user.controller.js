@@ -5,11 +5,12 @@ export async function getRecommendedUsers(req, res) {
   try {
     const currentUserId = req.user.id;
     const currentUser = req.user;
+    const friendsList = currentUser.friends || [];
 
     const recommendedUsers = await User.find({
       $and: [
         { _id: { $ne: currentUserId } }, //exclude current user
-        { _id: { $nin: currentUser.friends } }, // exclude current user's friends
+        { _id: { $nin: friendsList } }, // exclude current user's friends
         { isOnboarded: true },
       ],
     });

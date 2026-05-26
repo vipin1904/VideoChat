@@ -26,35 +26,50 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-[#202c33] text-[#e9edef] border-b border-[#222e35] h-[60px] w-full z-10 select-none">
+    <div className="flex items-center justify-between px-4 py-3 bg-base-300 text-base-content border-b border-base-content/10 h-[60px] w-full z-10 select-none">
       {/* Left: Avatar + Details */}
       <div className="flex items-center gap-3">
         <div className="relative">
           <img
             src={targetUser?.image || "https://avatar.iran.liara.run/public"}
             alt={targetUser?.name || "User"}
-            className="w-10 h-10 rounded-full object-cover border border-[#2f3b43]"
+            className="w-10 h-10 rounded-full object-cover border border-base-content/10"
           />
+          
+          {/* Clock icon overlay at bottom-right corner of avatar exactly as in user's screenshot */}
+          <div className="absolute -bottom-1 -right-1 bg-base-300 p-0.5 rounded-full border border-base-content/10 text-base-content/60" title="Disappearing messages enabled">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="w-3 h-3"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+
           {targetUser?.online && (
-            <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a884] border-2 border-[#202c33] rounded-full"></span>
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#00a884] border-2 border-base-300 rounded-full z-10"></span>
           )}
         </div>
         <div>
-          <h2 className="font-semibold text-sm leading-tight text-[#e9edef]">
+          <h2 className="font-semibold text-sm leading-tight text-base-content">
             {targetUser?.name || targetUser?.fullName || "Chat Partner"}
           </h2>
-          <p className="text-xs text-[#8696a0] mt-0.5">
+          <p className="text-xs text-base-content/60 mt-0.5">
             {targetUser?.online ? "online" : "offline"}
           </p>
         </div>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-4 text-[#aebac1]">
+      <div className="flex items-center gap-4 text-base-content/70">
         {/* Video Call */}
         <button
           onClick={handleVideoCall}
-          className="hover:text-[#e9edef] transition-colors p-2 rounded-full hover:bg-[#374248]"
+          className="hover:text-base-content transition-colors p-2 rounded-full hover:bg-base-content/10"
           title="Start video call"
         >
           <svg
@@ -68,7 +83,7 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
         </button>
 
         {/* Search */}
-        <button className="hover:text-[#e9edef] transition-colors p-2 rounded-full hover:bg-[#374248]" title="Search messages">
+        <button className="hover:text-base-content transition-colors p-2 rounded-full hover:bg-base-content/10" title="Search messages">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -85,7 +100,7 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="hover:text-[#e9edef] transition-colors p-2 rounded-full hover:bg-[#374248]"
+            className="hover:text-base-content transition-colors p-2 rounded-full hover:bg-base-content/10"
             title="Menu"
           >
             <svg
@@ -103,13 +118,13 @@ const WhatsAppHeader = ({ targetUser, handleVideoCall, onClearChat }) => {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)}></div>
-              <div className="absolute right-0 mt-2 w-48 bg-[#233138] rounded-md shadow-lg border border-[#374248] py-1 z-30">
+              <div className="absolute right-0 mt-2 w-48 bg-base-200 rounded-md shadow-lg border border-base-content/10 py-1 z-30">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
                     onClearChat();
                   }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-[#f87171] hover:bg-[#182229] transition-colors flex items-center gap-2 font-medium"
+                  className="w-full text-left px-4 py-2.5 text-sm text-error hover:bg-base-300 transition-colors flex items-center gap-2 font-medium"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />

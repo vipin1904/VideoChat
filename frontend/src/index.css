@@ -50,15 +50,15 @@
   height: 100% !important;
   margin: 0 !important;
   border-radius: 0 !important;
-  box-shadow: none !important;
-  background: #0b141a !important;
+  background: hsl(var(--b1)) !important;
 }
 
 .whatsapp-chat-container .str-chat__list {
-  background-color: #0b141a !important;
+  background-color: hsl(var(--b1)) !important;
   background-image: url('/whatsapp_doodle_background.png') !important;
   background-repeat: repeat !important;
   background-size: 380px !important;
+  background-blend-mode: overlay !important;
   opacity: 0.99;
   padding: 20px 4% !important;
   height: 100% !important;

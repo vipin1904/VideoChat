@@ -32,3 +32,116 @@
 .str-chat__message-input {
   border-top: 1px solid #ddd;
 }
+
+/* WhatsApp Web Styling Overrides */
+.whatsapp-chat-container .str-chat__channel {
+  background: #0b141a !important;
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.whatsapp-chat-container .str-chat__container {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #0b141a !important;
+}
+
+.whatsapp-chat-container .str-chat__list {
+  background-color: #0b141a !important;
+  background-image: url('/whatsapp_doodle_background.png') !important;
+  background-repeat: repeat !important;
+  background-size: 380px !important;
+  opacity: 0.99;
+  padding: 20px 4% !important;
+  height: 100% !important;
+}
+
+/* WhatsApp Message Bubble Styling */
+.whatsapp-chat-container .str-chat__message {
+  margin-bottom: 8px !important;
+}
+
+.whatsapp-chat-container .str-chat__message-bubble {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-size: 14.5px !important;
+  max-width: 65% !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Sent Messages (Me) */
+.whatsapp-chat-container .str-chat__message--me .str-chat__message-bubble {
+  background-color: #005c4b !important;
+  color: #e9edef !important;
+  border-top-right-radius: 0 !important;
+}
+
+/* Received Messages (Other) */
+.whatsapp-chat-container .str-chat__message--other .str-chat__message-bubble {
+  background-color: #202c33 !important;
+  color: #e9edef !important;
+  border-top-left-radius: 0 !important;
+}
+
+/* Hide message avatars to look like classic WhatsApp 1-on-1 */
+.whatsapp-chat-container .str-chat__message-avatar {
+  display: none !important;
+}
+
+/* WhatsApp Message Input Area styling */
+.whatsapp-chat-container .str-chat__message-input {
+  background-color: #202c33 !important;
+  border-top: 1px solid #2f3b43 !important;
+  padding: 10px 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.whatsapp-chat-container .str-chat__input-flat {
+  background-color: #2a3942 !important;
+  border-radius: 8px !important;
+  border: none !important;
+  color: #e9edef !important;
+  padding: 9px 12px !important;
+  font-size: 15px !important;
+  width: 100% !important;
+}
+
+.whatsapp-chat-container .str-chat__message-textarea {
+  background: transparent !important;
+  color: #e9edef !important;
+  border: none !important;
+  outline: none !important;
+  resize: none !important;
+  width: 100% !important;
+  caret-color: #00a884 !important;
+}
+
+.whatsapp-chat-container .str-chat__message-textarea::placeholder {
+  color: #8696a0 !important;
+}
+
+/* Custom WhatsApp UI Info Banner */
+.whatsapp-info-banner {
+  background-color: #182229 !important;
+  color: #8696a0 !important;
+  font-size: 12.5px !important;
+  padding: 8px 14px !important;
+  border-radius: 8px !important;
+  max-width: fit-content !important;
+  margin: 12px auto !important;
+  text-align: center !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #222e35 !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+}
+
